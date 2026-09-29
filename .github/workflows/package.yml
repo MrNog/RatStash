@@ -1,0 +1,274 @@
+name: Package addon
+
+# EVERY push to main cuts a release. You never make a tag by hand.
+#
+#   push to main                -> PATCH bump   (1.2.1 -> 1.2.2)
+#   commit message has [minor]  -> MINOR bump   (1.2.1 -> 1.3.0)
+#   commit message has [major]  -> MAJOR bump   (1.2.1 -> 2.0.0)
+#   commit message has [skip]   -> nothing runs (no tag, no zip, no Discord)
+#
+# The bump keyword may appear anywhere in the message, in any case: "[Minor]",
+# "fix loot [skip]", "[major] wipes SavedVariables". `[skip ci]` also works, since
+# it contains "[skip".
+#
+# The new version is computed from the LATEST EXISTING TAG, not from the .toc --
+# so the .toc's `## Version:` line is never edited by hand; the workflow stamps it
+# into the zip at package time. The tag it creates is the permanent record.
+#
+# Bumping guide: new module / feature = MINOR. Breaking change (e.g. wiping
+# SavedVariables) = MAJOR. Everything else = PATCH (the default, so usually you
+# just push and forget).
+#
+# Pushing a tag by hand (git tag v1.5.0 && git push --tags) still works and uses
+# that exact version -- kept as an escape hatch.
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need the full tag history to find the last version
+
+      # ------------------------------------------------------------------
+      # Decide whether to run at all, and what the next version is.
+      # ------------------------------------------------------------------
+      - name: Decide version
+        id: ver
+        run: |
+          set -euo pipefail
+
+          # --- hand-pushed tag: use it verbatim, don't compute or create anything
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            V="${GITHUB_REF#refs/tags/v}"
+            echo "version=$V"   >> "$GITHUB_OUTPUT"
+            echo "tag=v$V"      >> "$GITHUB_OUTPUT"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "createtag=false" >> "$GITHUB_OUTPUT"
+            echo "Hand-pushed tag -> $V"
+            exit 0
+          fi
+
+          # --- read the commit message (subject + body) and lowercase it
+          MSG="$(git log -1 --pretty=%B | tr '[:upper:]' '[:lower:]')"
+
+          # --- [skip] anywhere -> do nothing at all
+          if [[ "$MSG" == *"[skip"* || "$MSG" == *"[no-release]"* ]]; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "Commit asked to skip the release."
+            exit 0
+          fi
+
+          # --- last version tag (vX.Y.Z only; ignores anything else)
+          LAST="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)"
+          if [ -z "$LAST" ]; then LAST="v0.0.0"; fi
+          CUR="${LAST#v}"
+          MAJ="${CUR%%.*}"; REST="${CUR#*.}"; MIN="${REST%%.*}"; PAT="${REST#*.}"
+          # guard against a malformed tag (e.g. v1.2 with no patch)
+          [[ "$MAJ" =~ ^[0-9]+$ ]] || MAJ=0
+          [[ "$MIN" =~ ^[0-9]+$ ]] || MIN=0
+          [[ "$PAT" =~ ^[0-9]+$ ]] || PAT=0
+
+          # --- choose the bump from the commit message (default: patch)
+          if   [[ "$MSG" == *"[major]"* ]]; then MAJ=$((MAJ+1)); MIN=0; PAT=0; LEVEL=major
+          elif [[ "$MSG" == *"[minor]"* ]]; then MIN=$((MIN+1)); PAT=0;        LEVEL=minor
+          else                                   PAT=$((PAT+1));               LEVEL=patch
+          fi
+
+          V="$MAJ.$MIN.$PAT"
+          echo "version=$V"      >> "$GITHUB_OUTPUT"
+          echo "tag=v$V"         >> "$GITHUB_OUTPUT"
+          echo "release=true"    >> "$GITHUB_OUTPUT"
+          echo "createtag=true"  >> "$GITHUB_OUTPUT"
+          echo "prev=$LAST"      >> "$GITHUB_OUTPUT"
+          echo "$LAST -> v$V ($LEVEL bump)"
+
+      # Everything below is skipped wholesale on a [skip] commit.
+      - name: Build install-ready RatStash.zip (the repo root is the addon)
+        if: steps.ver.outputs.release == 'true'
+        run: |
+          set -euo pipefail
+          name="RatStash"
+          if [ ! -f "$name.toc" ]; then
+            echo "::error::No $name.toc -- nothing to package."; exit 1
+          fi
+          mkdir -p out "staging/$name/Media"
+          # only what the game loads: the .toc, the Lua files, the textures, and the license
+          cp "$name.toc" *.lua LICENSE "staging/$name/"
+          cp Media/*.blp "staging/$name/Media/"
+          # stamp the version into the staged .toc (single source of truth = the tag)
+          sed -i "s/^## Version:.*/## Version: ${{ steps.ver.outputs.version }}/" "staging/$name/$name.toc"
+          grep '^## Version:' "staging/$name/$name.toc"
+          ( cd staging && zip -r "../out/$name.zip" "$name" )
+          echo "packaged $name v${{ steps.ver.outputs.version }}"
+
+      # Create the tag we just computed, so the release has a permanent anchor and
+      # the NEXT push can find it to bump from. Done before `gh release create` so
+      # the release points at a tag that already exists.
+      - name: Create the version tag
+        if: steps.ver.outputs.release == 'true' && steps.ver.outputs.createtag == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.ver.outputs.tag }}" -m "RatStash ${{ steps.ver.outputs.version }}"
+          git push origin "${{ steps.ver.outputs.tag }}"
+
+      - name: Publish the versioned release
+        if: steps.ver.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "${{ steps.ver.outputs.tag }}" \
+            --title "RatStash ${{ steps.ver.outputs.version }}" \
+            --generate-notes \
+            out/*.zip
+
+      - name: Refresh the rolling Latest release
+        if: steps.ver.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # wipe + recreate the "latest" pointer so it always holds the newest zip
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest --title "Latest" --latest \
+            --notes "Latest build of RatStash (${{ steps.ver.outputs.version }}). Download RatStash.zip and unzip it into World of Warcraft\\Interface\\AddOns\\, then restart WoW." \
+            out/*.zip
+
+      # Announce to Discord from INSIDE this job, not from a separate workflow
+      # listening for `release: published`. A release created with the default
+      # GITHUB_TOKEN does NOT trigger other workflows (GitHub's anti-recursion
+      # rule), so that never fired. Announcing here also guarantees the zip is
+      # already uploaded when the message goes out.
+      #
+      # A missing webhook must NOT fail the build: the release is already public by
+      # this point, and a red X on a successful release is a lie. Warn instead.
+      - name: Announce the release to Discord
+        if: steps.ver.outputs.release == 'true'
+        env:
+          WEBHOOK: ${{ secrets.LOG_WEBHOOK }}              # RATS #okanor-logs
+          WEBHOOK_FORGE: ${{ secrets.LOG_WEBHOOK_FORGE }}  # Okanor's Forge #releases
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.ver.outputs.version }}
+          TAG: ${{ steps.ver.outputs.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          if [ -z "${WEBHOOK:-}" ] && [ -z "${WEBHOOK_FORGE:-}" ]; then
+            echo "::warning::LOG_WEBHOOK and LOG_WEBHOOK_FORGE are not set -- release published, Discord not notified."
+            exit 0
+          fi
+          # The embed is read by EVERY RAIDER, not by developers or officers: it
+          # must be short and say only what a raider notices in-game. So we do NOT
+          # use GitHub's generated notes (commit subjects + a compare link), and
+          # we do not link the full changelog -- it would expose officer tooling.
+          #
+          # We walk every commit since the previous tag and keep only body lines
+          # with a raider-facing keyword (case-insensitive, `-`/`*` bullet optional):
+          #   new: / feature: / add: / added:   -> New
+          #   fix: / fixed: / bug:              -> Fixed
+          # Everything else is left out -- including `officer:` lines (officer-only
+          # tools) and commits with no keyword line at all. Nothing falls back to
+          # the commit subject: silence is safer than developer shorthand.
+          #
+          # Each section shows at most MAX items, each cut to LINE chars at a word
+          # boundary, so a big release still posts a handful of lines.
+          MAX=3
+          LINE=90
+          # The previous tag is the one that PRECEDES this commit in history --
+          # ask git to walk it. (Sorting all tags by version and taking the top
+          # one looks equivalent but is not: it ignores which commit we are on,
+          # so re-running an older tag would build a backwards range.)
+          PREV="$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' "$TAG^" 2>/dev/null || true)"
+          if [ -n "$PREV" ]; then RANGE="$PREV..$TAG"; else RANGE="$TAG"; fi
+
+          : > new.txt
+          : > fix.txt
+          # %x00-separated commits so bodies with blank lines stay one record
+          git log "$RANGE" --no-merges --pretty=format:'%s%n%b%x00' | \
+          while IFS= read -r -d '' commit; do
+            lower="$(printf '%s' "$commit" | tr '[:upper:]' '[:lower:]')"
+            case "$lower" in *"[skip"*) continue ;; esac
+
+            while IFS= read -r line; do
+              # strip a leading bullet and whitespace
+              item="$(printf '%s' "$line" | sed -E 's/^[[:space:]]*[-*][[:space:]]*//')"
+              text="$(printf '%s' "$item" | sed -E 's/^[^:]+:[[:space:]]*//')"
+              # cut long lines at the last word boundary before LINE chars
+              if [ "${#text}" -gt "$LINE" ]; then
+                text="$(printf '%s' "${text:0:$LINE}" | sed -E 's/[[:space:]]+[^[:space:]]*$//')…"
+              fi
+              case "$(printf '%s' "$item" | tr '[:upper:]' '[:lower:]')" in
+                new:*|feature:*|feat:*|add:*|added:*) printf -- '- %s\n' "$text" >> new.txt ;;
+                fix:*|fixed:*|bug:*)                  printf -- '- %s\n' "$text" >> fix.txt ;;
+              esac
+            done <<< "$commit"
+          done
+
+          # Assemble the sections.
+          #
+          # `$(...)` strips trailing newlines -- which also killed the old `$(sep)`
+          # helper: a function that only ever printf'd "\n\n" returned the empty
+          # string through command substitution, so the "Fixed" header ended up
+          # glued to the last bullet of "New". Build the separator with a plain
+          # shell expansion instead, never through $( ).
+          # Both sections are assembled with printf, whose format string carries the
+          # newlines -- do NOT reach for a bare multi-line NL='...' literal here: a
+          # line at column 0 terminates the enclosing YAML block scalar and breaks
+          # the whole workflow.
+          # Anything past MAX lines collapses into one "+ other small fixes" line.
+          NEWS="$(head -n "$MAX" new.txt)"
+          FIXES="$(head -n "$MAX" fix.txt)"
+          if [ "$(wc -l < new.txt)" -gt "$MAX" ] || [ "$(wc -l < fix.txt)" -gt "$MAX" ]; then
+            FIXES="$(printf '%s\n- + other small fixes' "$FIXES" | sed '/^$/d')"
+          fi
+          DESC=""
+          if [ -n "$NEWS" ]; then
+            DESC="$(printf '**✨ New**\n%s' "$NEWS")"
+          fi
+          if [ -n "$FIXES" ]; then
+            if [ -n "$DESC" ]; then
+              DESC="$(printf '%s\n\n**🔧 Fixed**\n%s' "$DESC" "$FIXES")"
+            else
+              DESC="$(printf '**🔧 Fixed**\n%s' "$FIXES")"
+            fi
+          fi
+          [ -z "$DESC" ] && DESC="Small fixes and improvements."
+
+          # Title and link both point at the zip, never the release page (its
+          # generated notes list every commit subject).
+          ZIP="https://github.com/$REPO/releases/download/$TAG/RatStash.zip"
+          DESC="$(printf '%s\n\n**Install:** unzip into `World of Warcraft\\Interface\\AddOns\\`, then restart WoW.\n[Download RatStash.zip](%s)' "$DESC" "$ZIP")"
+
+          # 12686394 = #c1943a (RATS gold)
+          payload="$(jq -n --arg t "RatStash $VERSION" --arg u "$ZIP" \
+                           --arg d "$DESC" --arg f "$REPO" \
+            '{embeds:[{author:{name:"RatStash - new release"},title:$t,url:$u,
+                       description:$d,color:12686394,footer:{text:$f}}]}')"
+
+          # Same embed to every server that has a webhook set; one failing
+          # does not stop the other.
+          for target in "RATS|${WEBHOOK:-}" "Forge|${WEBHOOK_FORGE:-}"; do
+            name="${target%%|*}"
+            url="${target#*|}"
+            [ -z "$url" ] && continue
+            code="$(curl -s -o /dev/null -w '%{http_code}' \
+                    -H 'Content-Type: application/json' -d "$payload" "$url")"
+            if [ "$code" = "204" ] || [ "$code" = "200" ]; then
+              echo "Announced $TAG to $name (HTTP $code)"
+            else
+              echo "::warning::$name webhook failed (HTTP $code) -- release is still published."
+            fi
+          done
