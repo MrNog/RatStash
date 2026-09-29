@@ -1,0 +1,366 @@
+<title>RatStash Bags</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Roboto+Condensed:wght@400;600;700&display=swap">
+<style>
+/* Layout: two Bagnon-style frames (Bags, Bank), one continuous grid each, no section headers; stacks on phones. Single dark look (game UI). */
+:root{
+  --ground:#16130f; --frame:#0c0b0a; --frame-edge:#3a332a; --slot:#1c1a17; --slot-edge:#2c2822;
+  --gold:#e8c35a; --text:#e9e3d6; --dim:#8d857a; --fresh:#3ddc84; --pin:#6db3ff; --set:#c89bff;
+  --q0:#9d9d9d; --q1:#ffffff; --q2:#1eff00; --q3:#0070dd; --q4:#a335ee; --q5:#ff8000;
+  --display:"Cinzel",Georgia,serif; --ui:"Roboto Condensed","Arial Narrow",Arial,sans-serif;
+  color-scheme:dark;
+}
+html,body{background:var(--ground);color:var(--text)}
+body{font-family:var(--ui);padding:24px 16px 40px;background:radial-gradient(ellipse at 50% 0%,#2a241c 0%,var(--ground) 70%) var(--ground);min-height:100%}
+h1{font-family:var(--display);font-size:1.5rem;margin:0;color:var(--gold);letter-spacing:.04em}
+.top{max-width:1000px;margin:0 auto 18px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.top .sp{flex:1}
+.wrap{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:20px;align-items:start}
+.frame{background:var(--frame);border:1px solid var(--frame-edge);border-radius:6px;box-shadow:0 10px 30px #000a,inset 0 0 0 1px #000;min-width:0}
+.bar{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--slot-edge)}
+.bar .t{font-family:var(--display);font-size:.95rem;color:var(--gold);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn{font:600 .8rem var(--ui);color:var(--text);background:#241f19;border:1px solid var(--frame-edge);border-radius:4px;padding:5px 10px;cursor:pointer}
+.btn[aria-pressed="true"]{border-color:var(--fresh);color:var(--fresh)}
+.btn:hover{border-color:var(--gold);color:var(--gold)}
+.btn:focus-visible,.slot:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+.search{flex:0 1 150px;min-width:80px;font:.8rem var(--ui);color:var(--text);background:#000;border:1px solid var(--frame-edge);border-radius:4px;padding:4px 7px}
+.body.packed{flex-direction:row;flex-wrap:wrap;column-gap:14px;row-gap:6px}
+.body.packed>.grp{flex:1 1 100%;min-width:0}.body.packed>.grp.small{flex:0 0 auto}
+.grp.cat .grp-h{color:var(--dim)}.grp.pin .grp-h{color:var(--pin)}
+.slot.free .ct{color:var(--dim)}
+.settings{max-width:1000px;margin:0 auto 16px;background:var(--frame);border:1px solid var(--frame-edge);border-radius:6px;padding:12px 14px;display:flex;flex-wrap:wrap;gap:12px 28px;align-items:flex-end}
+.settings label{display:flex;flex-direction:column;gap:4px;font-size:.78rem;color:var(--dim)}
+.settings label.chk{flex-direction:row;align-items:center;gap:6px;color:var(--text)}
+.settings select{font:.85rem var(--ui);color:var(--text);background:#000;border:1px solid var(--frame-edge);border-radius:4px;padding:4px 6px}
+.bagbar{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--slot-edge);background:#12100d}
+.bagbar .lbl{font-size:.72rem;color:var(--dim);margin-right:4px}
+.bag{position:relative;width:34px;height:34px;border-radius:4px;border:1px solid var(--slot-edge);background:var(--slot);display:grid;place-items:center;font-size:18px;cursor:pointer;padding:0}
+.bag .ct{position:absolute;right:2px;bottom:0;font:700 10px var(--ui);color:#fff;text-shadow:0 0 2px #000,0 0 2px #000}
+.bag.buy{border-style:dashed;color:var(--dim);font-size:.7rem}
+.bag.swap{animation:pop .4s}
+.body{padding:6px 10px 10px;display:flex;flex-direction:column;gap:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,38px);gap:3px}
+.grp-h{display:flex;align-items:baseline;gap:6px;font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--set);padding:2px 0 4px}
+.grp-h .sub{font-weight:400;letter-spacing:0;text-transform:none;color:var(--dim)}
+.grp.raid{border:1px solid #3ddc8455;background:linear-gradient(90deg,#3ddc8412,transparent);border-radius:5px;padding:4px 6px 6px}
+.grp.raid .grp-h{color:var(--fresh)}
+.slot.ghost{opacity:.28;filter:grayscale(.6)}
+.slot .eq{position:absolute;left:0;right:0;top:9px;text-align:center;font:700 9px var(--ui);color:var(--text);letter-spacing:.05em}
+.slot{position:relative;width:38px;height:38px;border-radius:4px;background:var(--slot);border:1px solid var(--slot-edge);display:grid;place-items:center;font-size:20px;cursor:pointer;padding:0}
+.slot .ic{width:34px;height:34px;border-radius:3px;display:grid;place-items:center;background:var(--bgc,#333)}
+.slot.q0{border-color:var(--q0)}.slot.q1{border-color:#666}.slot.q2{border-color:var(--q2)}.slot.q3{border-color:var(--q3)}.slot.q4{border-color:var(--q4)}.slot.q5{border-color:var(--q5)}
+.slot.fresh{box-shadow:0 0 0 1px var(--fresh),0 0 8px #3ddc8499}
+.slot .ct{position:absolute;right:2px;bottom:0;font:700 11px var(--ui);color:#fff;text-shadow:0 0 2px #000,0 0 2px #000}
+.slot .il{position:absolute;left:0;right:0;bottom:0;text-align:center;font:700 12px var(--ui);text-shadow:0 0 2px #000,0 0 2px #000,0 0 3px #000}
+.slot .boe{position:absolute;left:1px;top:1px;font:700 9px var(--ui);color:#ffd24a;text-shadow:0 0 2px #000,0 0 2px #000}
+.slot .tm{position:absolute;right:1px;top:1px;font:700 9px var(--ui);color:#000;background:var(--fresh);border-radius:2px;padding:0 2px}
+.slot .up{position:absolute;right:1px;bottom:0;font:700 11px var(--ui);color:var(--q2);text-shadow:0 0 2px #000,0 0 2px #000}
+.tip .up{color:var(--q2)}.tip .no{color:var(--dim)}
+.slot .pn{position:absolute;right:2px;top:0;font-size:9px;color:var(--pin)}
+.slot.empty{cursor:default;opacity:.55}
+.slot.dim{opacity:.18}
+.slot.new{animation:pop .5s}
+@keyframes pop{0%{transform:scale(.3);opacity:0}100%{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){.slot.new{animation:none}}
+.foot{display:flex;align-items:center;gap:10px;padding:7px 10px;border-top:1px solid var(--slot-edge);font-size:.8rem;color:var(--dim)}
+.money{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--text)}
+.g{color:var(--gold)}.s{color:#c7c7c7}.c{color:#c47a3a}
+.tip{position:fixed;z-index:9;pointer-events:none;background:#0a0d18f0;border:1px solid #4a5a8a;border-radius:4px;padding:7px 9px;font-size:.82rem;max-width:230px;line-height:1.35}
+.tip .nm{font-weight:700}.tip .ln{color:var(--dim)}.tip .gr{color:var(--fresh)}.tip .pl{color:var(--pin)}
+.hint{max-width:1000px;margin:14px auto 0;color:var(--dim);font-size:.8rem}
+</style>
+
+<div class="top">
+  <h1>RatStash</h1><span class="sp"></span>
+  <button class="btn" id="loot">Loot something</button>
+  <button class="btn" id="swap">Swap set</button>
+  <button class="btn" id="ml" aria-pressed="false">Master looter: off</button>
+  <button class="btn" id="keep">Keep raid loot</button>
+  <button class="btn" id="cfg" aria-pressed="true">Settings</button>
+</div>
+<div class="settings" id="panel">
+  <label for="mode-bags">Bags layout<select id="mode-bags"><option value="grid">One grid</option><option value="sets" selected>One grid + sets</option><option value="groups">Groups</option></select></label>
+  <label for="mode-bank">Bank layout<select id="mode-bank"><option value="grid">One grid</option><option value="sets">One grid + sets</option><option value="groups" selected>Groups</option></select></label>
+  <label class="chk" for="opt-ml"><input type="checkbox" id="opt-ml" checked>Raid loot group when I am master looter</label>
+  <label class="chk" for="vs-others"><input type="checkbox" id="vs-others" checked>Merge unstackable items</label>
+  <label class="chk" for="vs-stack"><input type="checkbox" id="vs-stack" checked>Merge stackable items</label>
+  <label class="chk" for="vs-inc"><input type="checkbox" id="vs-inc">… including incomplete stacks</label>
+  <label for="vs-trade">At vendor, bank, mail or trade<select id="vs-trade"><option value="1">Keep merged</option><option value="2" selected>Split unstackable</option><option value="3">Split incomplete too</option><option value="4">Split everything</option></select></label>
+  <label class="chk" for="sim-trade"><input type="checkbox" id="sim-trade">(mock) I am at a vendor</label>
+</div>
+
+<div class="wrap">
+  <section class="frame">
+    <div class="bar">
+      <span class="t">Okanor's Bags</span>
+      <input class="search" id="s-bags" placeholder="Search" aria-label="Search bags">
+      <button class="btn" id="t-bags" aria-pressed="false">Bags</button>
+    </div>
+    <div class="bagbar" id="bb-bags" hidden></div>
+    <div class="body" id="g-bags"></div>
+    <div class="foot"><span id="free-bags"></span><span class="money"><span class="g">18 412</span>g <span class="s">37</span>s <span class="c">96</span>c</span></div>
+  </section>
+
+  <section class="frame">
+    <div class="bar">
+      <span class="t">Okanor's Bank</span>
+      <input class="search" id="s-bank" placeholder="Search" aria-label="Search bank">
+      <button class="btn" id="t-bank" aria-pressed="false">Bags</button>
+      <button class="btn" id="deposit">Deposit mats</button>
+    </div>
+    <div class="bagbar" id="bb-bank" hidden></div>
+    <div class="body" id="g-bank"></div>
+    <div class="foot"><span id="free-bank"></span><span class="money">Viewable offline</span></div>
+  </section>
+</div>
+<p class="hint">Mock. Settings picks the layout per window: one grid, one grid + sets, or AdiBags-style groups. Raid loot gets its own group while you are master looter. Alt-click or right-click pins. "Bags" shows your bag slots to swap bags.</p>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+/* Hidden order: 0 pinned · 1 raid loot · 2 set pieces in bags · 3 gear · 4 consumables · 5 trade goods · 6 quest · 7 junk */
+const ORDER={pin:0,fresh:1,set:2,gear:3,con:4,mat:5,quest:6,junk:7};
+const BG={gear:'#3a2a4a',mat:'#2d3b47',con:'#472d2d',hs:'#3d3528',grey:'#2a2a2a',orb:'#23405a',sar:'#2b2f3a',fish:'#1f3b44',tab:'#402a1c'};
+let uid=0;
+const I=(n,e,q,k,c,o={})=>({id:++uid,n,e,q,k,c:c||1,max:o.max||1,...o});
+const SETS={
+  Frost:[['Scourgelord Helmet','⛑️',264],['Scourgelord Shoulderplates','🛡️',264],['Scourgelord Battleplate','🥋',251],['Bryntroll, the Bone Arbiter','🪓',264],['Sanctified Scourgelord Gauntlets','🧤',264]],
+  Blood:[['Scourgelord Faceguard','⛑️',251],['Scourgelord Pauldrons','🛡️',264],['Scourgelord Chestguard','🥋',258],['Oathbinder, Charge of the Ranger-General','🗡️',258],['Juggernaut\'s Vitality','💠',245]]
+};
+/* per slot item level of each saved gear set (from the Equipment Manager). A drop is an upgrade for a set
+   when its item level beats what that set wears in the same slot. */
+const SETGEAR={
+  Frost:{head:264,shoulder:264,chest:251,weapon:264,hands:264,neck:251,feet:245,waist:258},
+  Blood:{head:251,shoulder:264,chest:258,weapon:258,hands:251,neck:264,feet:251,waist:264}
+};
+const upgrades=it=>!it.slot||it.set?[]:Object.keys(SETGEAR).map(n=>({n,d:it.il-SETGEAR[n][it.slot],cur:SETGEAR[n][it.slot]})).filter(u=>u.d>0);
+const upgradeLines=it=>!it.slot||it.set?'':Object.keys(SETGEAR).map(n=>{const d=it.il-SETGEAR[n][it.slot];
+  return d>0?`<div class="up">▲ Upgrade for ${n}: +${d} (${SETGEAR[n][it.slot]})</div>`:`<div class="no">${n}: no upgrade</div>`}).join('');
+const setItems=(name,eq)=>SETS[name].map((s,i)=>I(s[0],s[1],4,'set',1,{il:s[2],b:BG.gear,set:name,so:i,eq}));
+const state={
+  active:'Frost',
+  bags:[
+    I('Hearthstone','🏠',1,'pin',1,{b:BG.hs,pinned:1}),
+    I('Flask of Endless Rage','⚗️',1,'con',12,{b:BG.con,max:20,pinned:1}),
+    I('Mobile Banking','🐷',3,'gear',1,{b:BG.hs,pinned:1}),
+    I('Primordial Saronite','💎',4,'mat',1,{b:BG.sar,max:20,fresh:'ICC 25 · Lord Marrowgar'}),
+    I('Bone Sentinel\'s Amulet','📿',4,'gear',1,{slot:'neck',il:264,b:BG.gear,fresh:'ICC 25 · Lord Marrowgar',timer:'1h42'}),
+    ...setItems('Blood',false),
+    I('Belt of the Lonely Noble','🎗️',4,'gear',1,{slot:'waist',il:264,boe:1,b:BG.gear}),
+    I('Titanium Spikeguards','👢',3,'gear',1,{slot:'feet',il:200,b:BG.gear}),
+    I('Titanium Spikeguards','👢',3,'gear',1,{slot:'feet',il:200,b:BG.gear}),
+    I('Titanium Spikeguards','👢',3,'gear',1,{slot:'feet',il:200,b:BG.gear}),
+    I('Runic Healing Potion','🧪',1,'con',18,{b:BG.con,max:20}),
+    I('Potion of Speed','🧪',1,'con',10,{b:BG.con,max:20}),
+    I('Fish Feast','🍖',1,'con',5,{b:BG.con,max:20}),
+    I('Dragonfin Filet','🐟',1,'con',20,{b:BG.con,max:20}),
+    I('Primordial Saronite','💎',4,'mat',6,{b:BG.sar,max:20}),
+    I('Frozen Orb','🔮',3,'mat',3,{b:BG.orb,max:20}),
+    I('Deep Sea Monsterbelly','🐠',1,'mat',17,{b:BG.fish,max:20}),
+    I('Saronite Bar','🧱',1,'mat',20,{b:BG.mat,max:20}),
+    I('Eternal Frost','❄️',1,'mat',5,{b:BG.mat,max:20}),
+    I('Broken Bone Shard','🦴',0,'junk',7,{b:BG.grey,max:20,v:'3g'}),
+  ],
+  bank:[
+    I('Argent Crusader\'s Tabard','🏳️',3,'gear',1,{b:BG.tab,pinned:1}),
+    I('Relentless Gladiator\'s Plate Helm','⛑️',4,'gear',1,{slot:'head',il:245,b:BG.gear}),
+    I('Relentless Gladiator\'s Greatsword','🗡️',4,'gear',1,{slot:'weapon',il:245,b:BG.gear}),
+    I('Reins of the Traveler\'s Tundra Mammoth','🦣',4,'gear',1,{b:BG.hs}),
+    I('Flask of Endless Rage','⚗️',1,'con',20,{b:BG.con,max:20}),
+    I('Flask of Endless Rage','⚗️',1,'con',20,{b:BG.con,max:20}),
+    I('Runic Healing Potion','🧪',1,'con',20,{b:BG.con,max:20}),
+    I('Primordial Saronite','💎',4,'mat',14,{b:BG.sar,max:20}),
+    I('Frozen Orb','🔮',3,'mat',11,{b:BG.orb,max:20}),
+    I('Saronite Ore','🪨',1,'mat',20,{b:BG.mat,max:20}),
+    I('Saronite Ore','🪨',1,'mat',20,{b:BG.mat,max:20}),
+    I('Titanium Ore','🪨',2,'mat',20,{b:BG.mat,max:20}),
+    I('Eternal Shadow','🌑',1,'mat',9,{b:BG.mat,max:20}),
+  ],
+  containers:{
+    bags:[{n:'Backpack',e:'🎒',sz:16,fixed:1},{n:'Frostweave Bag',e:'👝',sz:20},{n:'Frostweave Bag',e:'👝',sz:20},{n:'Netherweave Bag',e:'👜',sz:16},{n:'Mooncloth Bag',e:'👜',sz:14}],
+    bank:[{n:'Bank',e:'🏦',sz:28,fixed:1},{n:'Frostweave Bag',e:'👝',sz:20},{n:'Frostweave Bag',e:'👝',sz:20},{n:'Netherweave Bag',e:'👜',sz:16},null,null,null,null]
+  },
+  size:{bags:0,bank:0}, justAdded:new Set(), ml:false, mode:{bags:'sets',bank:'groups'}, mlGroup:true, vs:{others:true,stack:true,inc:false,trade:2}, trading:false
+};
+
+/* sort key: pinned first, then raid loot, then hidden category, then name, then set piece order */
+const cat=it=>it.pinned?ORDER.pin:it.fresh?ORDER.fresh:ORDER[it.k];
+/* in one-grid mode set pieces sort with gear, by set then slot order */
+const sortList=l=>l.sort((a,b)=>cat(a)-cat(b)||(a.set||'').localeCompare(b.set||'')||(a.so??0)-(b.so??0)||a.n.localeCompare(b.n)||b.c-a.c);
+
+/* virtual stacks: show several real slots as one. Full stacks merge; incomplete ones only if allowed;
+   unstackable copies merge by name. While trading, the chosen level splits them back apart. */
+function vsKey(it){
+  const c=state.vs, u=state.trading?c.trade:0;
+  if(it.set||it.eq) return null;
+  if(it.max>1){
+    if(!c.stack) return null;
+    if(it.c===it.max) return 'S:'+it.n+(it.fresh?':f':'');
+    return u<3&&c.inc?'S:'+it.n+(it.fresh?':f':''):null;
+  }
+  return c.others&&u<2?'U:'+it.n+(it.fresh?':f':''):null;
+}
+function vs(list){
+  if(state.trading&&state.vs.trade>=4) return list;
+  const out=[], seen={};
+  for(const it of list){
+    const k=vsKey(it);
+    if(!k){out.push(it);continue}
+    if(seen[k]){seen[k].c+=it.c;seen[k].slots++;seen[k].members.push(it);continue}
+    seen[k]={...it,slots:1,members:[it]}; out.push(seen[k]);
+  }
+  return out;
+}
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function slotEl(it,where){
+  const b=document.createElement('button');
+  b.className='slot q'+it.q+(it.fresh?' fresh':'')+(it.eq?' ghost':'')+(state.justAdded.has(it.id)?' new':''); b.type='button';
+  b.dataset.id=it.id; b.dataset.name=it.n.toLowerCase();
+  b.innerHTML=`<span class="ic" style="--bgc:${it.b}">${it.e}</span>`+
+    (it.c>1||it.slots>1?`<span class="ct">${it.slots>1&&it.max===1?it.slots:it.c}</span>`:'')+
+    (it.il?`<span class="il" style="color:var(--q${it.q})">${it.il}</span>`:'')+
+    (it.boe&&it.il?'<span class="boe">BoE</span>':'')+
+    (it.timer?`<span class="tm">${it.timer}</span>`:'')+
+    (it.pinned&&!it.timer?'<span class="pn">●</span>':'');
+  b.addEventListener('mouseenter',e=>showTip(e,it));
+  b.addEventListener('mousemove',moveTip);
+  b.addEventListener('mouseleave',hideTip);
+  const pin=e=>{e.preventDefault();const v=!it.pinned;(it.members||[it]).forEach(m=>m.pinned=v);hideTip();render()};
+  b.addEventListener('contextmenu',pin);
+  b.addEventListener('click',e=>{if(e.altKey)pin(e)});
+  return b;
+}
+const UPGRADES=[{n:'Netherweave Bag',e:'👜',sz:16},{n:'Frostweave Bag',e:'👝',sz:20},{n:'Glacial Bag',e:'🧊',sz:22}];
+function drawBagbar(where){
+  const bar=document.getElementById('bb-'+where); bar.innerHTML='<span class="lbl">Click a bag to swap it</span>';
+  state.containers[where].forEach((c,i)=>{
+    const b=document.createElement('button'); b.type='button';
+    if(!c){b.className='bag buy';b.textContent='Buy';b.title='Buy bank slot';
+      b.onclick=()=>{state.containers[where][i]={n:'Netherweave Bag',e:'👜',sz:16};drawBagbar(where);render();bar.children[i+1].classList.add('swap')};}
+    else{b.className='bag';b.innerHTML=`${c.e}<span class="ct">${c.sz}</span>`;
+      b.addEventListener('mouseenter',e=>{tip.innerHTML=`<div class="nm">${esc(c.n)}</div><div class="ln">${c.sz} slots</div>`+(c.fixed?'':'<div class="pl">Click (or drag a bag here) to swap</div>');tip.hidden=false;moveTip(e)});
+      b.addEventListener('mousemove',moveTip);b.addEventListener('mouseleave',hideTip);
+      if(!c.fixed) b.onclick=()=>{const k=UPGRADES.findIndex(u=>u.sz>c.sz);const nb=UPGRADES[k<0?0:k];state.containers[where][i]={...nb};hideTip();drawBagbar(where);render();bar.children[i+1].classList.add('swap')};}
+    bar.appendChild(b);
+  });
+}
+function render(){
+  for(const w of ['bags','bank']) state.size[w]=state.containers[w].reduce((a,c)=>a+(c?c.sz:0),0);
+  /* FLIP: remember where every item was, re-render, then slide from old to new spot */
+  const before={};
+  document.querySelectorAll('.slot[data-id]').forEach(s=>before[s.dataset.id]=s.getBoundingClientRect());
+  for(const where of ['bags','bank']){
+    const root=document.getElementById('g-'+where); root.innerHTML='';
+    const all=state[where];
+    const group=(cls,title,sub,items)=>{
+      const d=document.createElement('div'); d.className='grp '+cls;
+      d.innerHTML=`<div class="grp-h">${esc(title)}${sub?`<span class="sub">${esc(sub)}</span>`:''}</div>`;
+      const g=document.createElement('div'); g.className='grid';
+      items.forEach(it=>g.appendChild(slotEl(it,where))); d.appendChild(g); root.appendChild(d);
+    };
+    const mode=state.mode[where];
+    root.classList.toggle('packed',mode==='groups');
+    const used=all.filter(i=>!i.eq).length, free=state.size[where]-used;
+    const raid=where==='bags'&&state.ml&&state.mlGroup?all.filter(i=>i.fresh):[];
+    if(raid.length) group('raid','Raid loot',`${raid.length} to hand out · ICC 25`,vs(raid));
+    const setGroups=()=>{for(const name of Object.keys(SETS)){
+      const items=all.filter(i=>i.set===name).sort((a,b)=>a.so-b.so);
+      if(items.length) group('set','Set: '+name,'',items);
+    }};
+    if(mode==='groups'){
+      /* AdiBags style: one block per category, fixed order, small blocks share a row, free space folded into one slot */
+      const left=all.filter(i=>!raid.includes(i)&&!i.eq);
+      const pinned=vs(sortList(left.filter(i=>i.pinned)));
+      if(pinned.length) group('pin','Pinned','',pinned);
+      setGroups();
+      const CATS=[['fresh','Raid loot'],['gear','Gear'],['con','Consumables'],['mat','Trade goods'],['quest','Quest'],['junk','Junk']];
+      for(const [k,label] of CATS){
+        const items=vs(sortList(left.filter(i=>!i.pinned&&!i.set&&(k==='fresh'?i.fresh:!i.fresh&&i.k===k))));
+        if(items.length) group('cat'+(items.length<=4?' small':''),label,'',items);
+      }
+      const d=document.createElement('div'); d.className='grp cat small';
+      d.innerHTML=`<div class="grp-h">Free</div><div class="grid"><div class="slot empty free"><span class="ct">${free}</span></div></div>`;
+      root.appendChild(d);
+    }else{
+      if(mode==='sets') setGroups();
+      const rest=vs(sortList(all.filter(i=>!raid.includes(i)&&!i.eq&&(mode==='grid'||!i.set))));
+      const g=document.createElement('div'); g.className='grid'; root.appendChild(g);
+      rest.forEach(it=>g.appendChild(slotEl(it,where)));
+      for(let i=0;i<free;i++){const e=document.createElement('div');e.className='slot empty';g.appendChild(e)}
+    }
+    document.getElementById('free-'+where).textContent=(state.size[where]-used)+' free';
+    const q=document.getElementById('s-'+where).value.trim().toLowerCase();
+    if(q) root.querySelectorAll('.slot[data-id]').forEach(s=>s.classList.toggle('dim',!s.dataset.name.includes(q)));
+  }
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches){state.justAdded.clear();return}
+  document.querySelectorAll('.slot[data-id]').forEach(s=>{
+    const a=before[s.dataset.id]; if(!a) return;
+    const b=s.getBoundingClientRect(), dx=a.left-b.left, dy=a.top-b.top;
+    if(!dx&&!dy) return;
+    s.animate([{transform:`translate(${dx}px,${dy}px)`},{transform:'none'}],{duration:320,easing:'cubic-bezier(.2,.7,.2,1)'});
+  });
+  state.justAdded.clear();
+}
+
+/* add to bags: top up existing stacks of the same item, overflow becomes a new stack right next to them */
+function give(where,tpl,count){
+  const list=state[where];
+  for(const s of list){ if(count<=0)break; if(s.n===tpl.n&&!s.fresh===!tpl.fresh&&s.max>1&&s.c<s.max){const t=Math.min(count,s.max-s.c);s.c+=t;count-=t;} }
+  while(count>0){const t=Math.min(count,tpl.max||1);const it=I(tpl.n,tpl.e,tpl.q,tpl.k,t,{...tpl,c:t,id:undefined});it.id=++uid;list.push(it);state.justAdded.add(it.id);count-=t;}
+}
+const LOOT=[
+  [{n:'Deep Sea Monsterbelly',e:'🐠',q:1,k:'mat',b:BG.fish,max:20},6],
+  [{n:'Runic Mana Potion',e:'🧪',q:1,k:'con',b:BG.con,max:20},4],
+  [{n:'Deathfrost Boots',e:'👢',q:4,k:'gear',slot:'feet',il:264,boe:1,b:BG.gear,fresh:'ICC 25 · trash'},1],
+  [{n:'Frozen Orb',e:'🔮',q:3,k:'mat',b:BG.orb,max:20,fresh:'ICC 25 · trash'},1],
+  [{n:'Deep Sea Monsterbelly',e:'🐠',q:1,k:'mat',b:BG.fish,max:20},3],
+  [{n:'Tattered Cloth Scrap',e:'🧵',q:0,k:'junk',b:BG.grey,max:20,v:'1g'},2],
+];
+let li=0;
+document.getElementById('loot').onclick=()=>{const [t,c]=LOOT[li++%LOOT.length];give('bags',t,c);render()};
+document.getElementById('swap').onclick=()=>{
+  const off=state.active; state.active=off==='Frost'?'Blood':'Frost';
+  state.bags=state.bags.filter(i=>i.set!==state.active);
+  setItems(off,false).forEach(i=>{state.bags.push(i);state.justAdded.add(i.id)});
+  render();
+};
+[['vs-others','others'],['vs-stack','stack'],['vs-inc','inc']].forEach(([id,k])=>document.getElementById(id).onchange=e=>{state.vs[k]=e.target.checked;render()});
+document.getElementById('vs-trade').onchange=e=>{state.vs.trade=+e.target.value;render()};
+document.getElementById('sim-trade').onchange=e=>{state.trading=e.target.checked;render()};
+document.getElementById('opt-ml').onchange=e=>{state.mlGroup=e.target.checked;render()};
+document.getElementById('cfg').onclick=e=>{const p=document.getElementById('panel');p.hidden=!p.hidden;e.currentTarget.setAttribute('aria-pressed',!p.hidden)};
+document.getElementById('ml').onclick=e=>{
+  state.ml=!state.ml; e.currentTarget.setAttribute('aria-pressed',state.ml);
+  e.currentTarget.textContent='Master looter: '+(state.ml?'on':'off'); render();
+};
+document.getElementById('keep').onclick=()=>{
+  const fresh=state.bags.filter(i=>i.fresh); state.bags=state.bags.filter(i=>!i.fresh);
+  fresh.forEach(i=>give('bags',{...i,fresh:null,timer:null},i.c)); render();
+};
+document.getElementById('deposit').onclick=()=>{
+  const mats=state.bags.filter(i=>i.k==='mat'&&!i.fresh&&!i.pinned); state.bags=state.bags.filter(i=>!mats.includes(i));
+  mats.forEach(i=>give('bank',i,i.c)); render();
+};
+['bags','bank'].forEach(w=>{
+  document.getElementById('s-'+w).addEventListener('input',render);
+  document.getElementById('mode-'+w).onchange=e=>{state.mode[w]=e.target.value;render()};
+  document.getElementById('t-'+w).onclick=e=>{const bar=document.getElementById('bb-'+w);bar.hidden=!bar.hidden;e.currentTarget.setAttribute('aria-pressed',!bar.hidden)};
+  drawBagbar(w);
+});
+
+const tip=document.getElementById('tip');
+function showTip(e,it){
+  const col=getComputedStyle(document.documentElement).getPropertyValue('--q'+it.q);
+  tip.innerHTML=`<div class="nm" style="color:${col}">${esc(it.n)}</div>`+
+    (it.boe&&it.il?'<div class="ln">Binds when equipped</div>':'')+
+    (it.il?`<div class="ln">Item Level ${it.il}</div>`:'')+
+    (it.set?`<div class="ln">Equipment set: ${it.set}</div>`:'')+
+    (it.c>1?`<div class="ln">Stack: ${it.c}</div>`:'')+(it.slots>1?`<div class="pl">Merged · ${it.slots} bag slots</div>`:'')+
+    (it.fresh?`<div class="gr">Looted: ${esc(it.fresh)}</div>`:'')+
+    (it.timer?`<div class="gr">Tradeable for ${it.timer.replace('h','h ')}m</div>`:'')+
+    (it.v?`<div class="ln">Sells for ${it.v}</div>`:'')+
+    (it.pinned?'<div class="pl">Pinned · alt-click to unpin</div>':'');
+  tip.hidden=false; moveTip(e);
+}
+function moveTip(e){tip.style.left=Math.min(e.clientX+14,innerWidth-240)+'px';tip.style.top=(e.clientY+14)+'px'}
+function hideTip(){tip.hidden=true}
+render();
+</script>
