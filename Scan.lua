@@ -81,9 +81,11 @@ local MAT_BY_SUB = {
 	["Meat"] = "Cooking", ["Elemental"] = "Elemental", ["Enchanting"] = "Enchanting",
 	["Jewelcrafting"] = "Gems", ["Parts"] = "Engineering", ["Devices"] = "Engineering", ["Explosives"] = "Engineering",
 }
--- materials the game files under a generic subtype, placed by hand
+-- materials the game files under a generic subtype, placed by hand; profession tools the game
+-- files as weapons go here too, so they sit with their profession instead of in Gear
 local MAT_BY_ID = {
-	[43007] = "Cooking", -- Northern Spices
+	[43007] = "Cooking",     -- Northern Spices
+	[6219]  = "Engineering", -- Arclight Spanner
 }
 local function MatKind(r)
 	if MAT_BY_ID[r.id] then return MAT_BY_ID[r.id] end
@@ -95,6 +97,7 @@ end
 local function Category(r, bag, slot)
 	if r.quality == 0 then return "junk" end
 	if r.itype == QUEST then return "quest" end
+	if MAT_BY_ID[r.id] then return "mat" end
 	if bag and GetContainerItemQuestInfo then
 		local isQuest = GetContainerItemQuestInfo(bag, slot)
 		if isQuest then return "quest" end
@@ -126,7 +129,7 @@ local function Fill(r, link, count, locked, live)
 		-- dusts, essences and shards sit with the enchant scrolls
 		if r.matKind == "Enchanting" then r.cat = "ench" end
 	end
-	r.isGear = r.cat == "gear" or ((itype == WEAPON or itype == ARMOR) and r.equipLoc ~= "")
+	r.isGear = r.cat == "gear" or ((itype == WEAPON or itype == ARMOR) and r.equipLoc ~= "" and not MAT_BY_ID[r.id])
 	r.showIlvl = r.isGear and not NO_ILVL[r.equipLoc] and r.ilvl > 1
 	if live and r.isGear then r.boe = ScanTooltip(r, false) end
 end
@@ -203,13 +206,25 @@ local function RaidLabel()
 	return name
 end
 
+-- Only rare (blue) and better counts as raid loot; trash greys, whites and greens
+-- just go into your bags. The link's color covers items not cached yet.
+local RARE = 3
+local LINK_QUALITY = { ["0070dd"] = 3, ["a335ee"] = 4, ["ff8000"] = 5 }
+
+local function Quality(link)
+	local q = select(3, GetItemInfo(link))
+	if q then return q end
+	local hex = link:match("|cff(%x%x%x%x%x%x)")
+	return hex and LINK_QUALITY[hex:lower()] or 0
+end
+
 ns.On("CHAT_MSG_LOOT", function(msg)
 	local inInstance, kind = IsInInstance()
 	if not inInstance or kind ~= "raid" then return end
 	local link, n = msg:match(LOOT_MULTI)
 	if not link then link = msg:match(LOOT_ONE); n = 1 end
 	local id = ItemID(link)
-	if not id then return end
+	if not id or Quality(link) < RARE then return end
 	pending[#pending + 1] = { id = id, link = link, n = tonumber(n) or 1, zone = RaidLabel(), t = time(), giveUp = GetTime() + 10 }
 	ns.Dirty("bags")
 end)

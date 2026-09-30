@@ -115,9 +115,11 @@ local function Merge(list, trading)
 		if m then
 			m.count = m.count + e.count
 			m.slots = m.slots + 1
+			m.members[#m.members + 1] = { bag = e.bag, slot = e.slot }
 		else
 			if k then
 				e.slots = 1
+				e.members = { { bag = e.bag, slot = e.slot } }
 				seen[k] = e
 			end
 			out[#out + 1] = e

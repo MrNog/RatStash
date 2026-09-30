@@ -74,22 +74,40 @@ local function Item_OnLeave()
 	ResetCursor()
 end
 
-local function Item_OnClick(self, button)
+-- The template's own OnClick must stay in place: a handler set by an addon is
+-- insecure, and UseContainerItem called from it is blocked, so right-click
+-- would stop using items. Our extras run around it instead. PreClick decides
+-- (the cursor is still empty then), Blizzard's OnClick runs, and PostClick
+-- undoes its pickup where we wanted something else.
+local function Item_PreClick(self, button)
+	self.clickAction = nil
 	local e = self.entry
 	if not e then return end
+	local held = CursorHasItem()
 	if self.cached then
+		self.clickAction = "cached"
+	elseif IsAltKeyDown() and e.id and button == "LeftButton" and not held then
+		self.clickAction = "pin"
+	elseif e.split and button == "LeftButton" and not IsModifiedClick() and not held then
+		self.clickAction = "split"
+	end
+end
+
+local function Item_PostClick(self)
+	local action, e = self.clickAction, self.entry
+	self.clickAction = nil
+	if not (action and e) then return end
+	if action == "cached" then
+		-- an offline bank slot: nothing real to pick up, only links to chat
+		if CursorHasItem() then ClearCursor() end
 		if e.link and IsModifiedClick() then HandleModifiedItemClick(e.link) end
-		return
-	end
-	if IsAltKeyDown() and e.id and button == "LeftButton" and not CursorHasItem() then
+	elseif action == "pin" then
+		if CursorHasItem() then ClearCursor() end
 		ns.TogglePin(e.id)
-		return
-	end
-	if e.split and button == "LeftButton" and not IsModifiedClick() and not CursorHasItem() then
+	elseif action == "split" then
+		if CursorHasItem() then ClearCursor() end
 		SplitContainerItem(e.bag, e.slot, e.split)
-		return
 	end
-	self.origClick(self, button)
 end
 
 local function Item_OnDragStart(self, ...)
@@ -110,11 +128,11 @@ local function NewItemButton(win, i)
 	b.cooldown = _G[name .. "Cooldown"]
 	b.questTex = _G[name .. "IconQuestTexture"]
 
-	b.origClick = b:GetScript("OnClick")
 	b.origDrag = b:GetScript("OnDragStart")
 	b.origReceive = b:GetScript("OnReceiveDrag")
 	b:SetScript("OnEvent", nil)
-	b:SetScript("OnClick", Item_OnClick)
+	b:SetScript("PreClick", Item_PreClick)
+	b:SetScript("PostClick", Item_PostClick)
 	b:SetScript("OnDragStart", Item_OnDragStart)
 	b:SetScript("OnReceiveDrag", Item_OnReceiveDrag)
 	b:SetScript("OnEnter", Item_OnEnter)
@@ -268,10 +286,39 @@ function W:Update()
 	self:Layout()
 end
 
+-- A merged slot re-adds its real slots, so using one of its stacks shows at once.
+-- If the slot the button points at runs out, it moves to one that still has the item.
+function W:RefreshMerged(b, e)
+	local total, slots, repOk, first, locked = 0, 0, false, nil, false
+	for _, m in ipairs(e.members) do
+		local _, count, lk, _, _, _, link = GetContainerItemInfo(m.bag, m.slot)
+		if link and ns.ItemID(link) == e.id then
+			total, slots = total + (count or 0), slots + 1
+			first = first or m
+			if m.bag == e.bag and m.slot == e.slot then repOk, locked = true, lk end
+		end
+	end
+	if not first then
+		self:SetEntry(b, { bag = e.bag, slot = e.slot, key = e.key }, false)
+		return
+	end
+	if not repOk then
+		e.bag, e.slot = first.bag, first.slot
+		b:SetParent(self.dummy[e.bag])
+		b:SetID(e.slot)
+	end
+	e.count, e.slots, e.locked = total, slots, locked
+	SetItemButtonCount(b, (e.maxStack == 1 and slots > 1) and slots or total)
+	SetItemButtonDesaturated(b, locked)
+	ContainerFrame_UpdateCooldown(e.bag, b)
+end
+
 function W:RefreshInPlace()
 	for _, b in ipairs(self.buttons) do
 		local e = b:IsShown() and b.entry
-		if e and not e.freeCount then
+		if e and e.members and #e.members > 1 then
+			self:RefreshMerged(b, e)
+		elseif e and not e.freeCount then
 			local tex, count, locked, _, _, _, link = GetContainerItemInfo(e.bag, e.slot)
 			if link ~= e.link then
 				local live = { bag = e.bag, slot = e.slot, key = e.key }
@@ -294,6 +341,7 @@ end
 function W:Layout()
 	self.pending = nil
 	self.laidOut = true
+	if self.matsBtn then self.matsBtn:SetAlpha(ns.atBank and 1 or 0.45) end
 	local sections, free, cached = ns.BuildSections(self.kind)
 	self.cached = cached
 	local cols = ns.db.columns[self.kind]
@@ -406,8 +454,10 @@ function W:Resize(cw, ch)
 	local barH = self.bagbar:IsShown() and BAGBAR_H or 0
 	self.content:ClearAllPoints()
 	self.content:SetPoint("TOPLEFT", PAD, -(PAD + TOP_H + barH + 8))
-	self:SetWidth(math.max(cw + PAD * 2, 330))
-	local w, h = math.max(cw + PAD * 2, 330), PAD + TOP_H + barH + 8 + ch + 8 + FOOT_H + PAD - 4
+	-- wide enough for the title row: name, search box and the icon buttons
+	local w = math.max(cw + PAD * 2, self.kind == "bags" and 440 or 390)
+	self:SetWidth(w)
+	local h = PAD + TOP_H + barH + 8 + ch + 8 + FOOT_H + PAD - 4
 	self:SetHeight(h)
 	self:UpdateArt(w, h)
 end
@@ -648,11 +698,22 @@ function ns.CreateWindow(kind)
 	if kind == "bags" then
 		local bankBtn = IconButton(f, [[Interface\Icons\INV_Misc_Coin_01]], "Bank (works offline)", ns.ToggleBank)
 		bankBtn:SetPoint("RIGHT", bagsBtn, "LEFT", -4, 0)
-		anchor = bankBtn
+		-- dimmed away from a bank: moving items only works with the bank open
+		local mats = IconButton(f, [[Interface\Icons\INV_Ore_Saronite_01]], "Send mats to bank", ns.SendMatsToBank)
+		mats:HookScript("OnEnter", function()
+			GameTooltip:AddLine("Trade goods, dusts and gems go to the bank, onto their stacks first. "
+				.. "Pinned items stay.", 0.7, 0.7, 0.7, true)
+			if not ns.atBank then GameTooltip:AddLine("Open the bank first.", 1, 0.82, 0) end
+			GameTooltip:Show()
+		end)
+		mats:SetPoint("RIGHT", bankBtn, "LEFT", -4, 0)
+		f.bankBtn = bankBtn
+		f.matsBtn = mats
+		anchor = mats
 	end
 
 	-- search: never focused automatically, loses focus on Enter, Escape, combat, world clicks, hide
-	local search = ns.FlatInput(f, name .. "Search", 120, 20)
+	local search = ns.FlatInput(f, name .. "Search", 170, 20)
 	search:SetPoint("RIGHT", anchor, "LEFT", -8, 0)
 	search:SetScript("OnEscapePressed", search.ClearFocus)
 	search:SetScript("OnEnterPressed", search.ClearFocus)
@@ -677,7 +738,7 @@ function ns.CreateWindow(kind)
 	drag:SetPoint("RIGHT", search, "LEFT", -10, 0)
 	drag:SetHeight(TOP_H)
 	local top = drag:GetFrameLevel() + 2
-	for _, b in ipairs({ opts, bagsBtn, anchor, close }) do b:SetFrameLevel(top) end
+	for _, b in ipairs({ opts, bagsBtn, anchor, close, f.bankBtn }) do b:SetFrameLevel(top) end
 	search:SetFrameLevel(top)
 
 	f:CreateBagBar()
@@ -814,6 +875,27 @@ local function KeepInBags(bag, slot, id)
 	return ns.db.pins[id] or fresh.stack[id] or fresh.slot[bag .. ":" .. slot]
 end
 
+local AH_CLASS = { GetAuctionItemClasses() }
+local TRADE_GOODS, GEMS = AH_CLASS[6], AH_CLASS[10]
+
+-- crafting materials: trade goods (dusts and essences included) and gems
+local function IsMat(link)
+	local _, _, quality, _, _, itype = GetItemInfo(link)
+	return quality ~= 0 and (itype == TRADE_GOODS or itype == GEMS)
+end
+
+-- mode "stack": items the bank already holds, onto their bank stacks
+-- mode "mats":  every material, topping up bank stacks first, then free bank slots;
+--               only pins keep a material in the bags (raid loot marks do not)
+local function Wanted(mode, bag, slot, id, link, inBank)
+	if mode == "mats" then
+		return IsMat(link) and not ns.db.pins[id]
+	end
+	return inBank[id] and MaxStack(link) > 1 and not KeepInBags(bag, slot, id)
+end
+
+local mode = "stack"
+
 local function NextMove()
 	local inBank, partial, free = {}, {}, nil
 	for _, bag in ipairs(ns.BANK) do
@@ -827,7 +909,7 @@ local function NextMove()
 				if max > 1 and count < max and not locked and not partial[id] then
 					partial[id] = { bag = bag, slot = slot, room = max - count }
 				end
-			elseif not free and btype == 0 then
+			elseif not free and (btype or 0) == 0 then
 				free = { bag = bag, slot = slot }
 			end
 		end
@@ -836,7 +918,7 @@ local function NextMove()
 		for slot = 1, GetContainerNumSlots(bag) or 0 do
 			local link, count, locked = Slot(bag, slot)
 			local id = ns.ItemID(link)
-			if id and not locked and inBank[id] and MaxStack(link) > 1 and not KeepInBags(bag, slot, id) then
+			if id and not locked and Wanted(mode, bag, slot, id, link, inBank) then
 				local t = partial[id]
 				if t then return bag, slot, t.bag, t.slot, math.min(count, t.room), count end
 				if free then return bag, slot, free.bag, free.slot, count, count end
@@ -848,7 +930,13 @@ end
 local function Stop()
 	mover:Hide()
 	waitFor = nil
-	if moved > 0 then ns.Print("Stacked " .. moved .. (moved == 1 and " item" or " items") .. " into the bank.") end
+	if moved > 0 then
+		local what = moved .. (moved == 1 and " stack" or " stacks")
+		ns.Print(mode == "mats" and ("Sent " .. what .. " of materials to the bank.")
+			or ("Stacked " .. what .. " into the bank."))
+	elseif mode == "mats" then
+		ns.Print("No materials to send, or the bank is full.")
+	end
 	ns.Dirty()
 end
 
@@ -878,9 +966,20 @@ mover:SetScript("OnUpdate", function(_, elapsed)
 	waitFor = { sb, ss, tb, ts }
 end)
 
-function ns.StackToBank()
+local function StartMover(m)
 	if not ns.atBank or mover:IsShown() then return end
 	if CursorHasItem() then ClearCursor() end
+	mode = m
 	moved, waitFor, idle = 0, nil, 0
 	mover:Show()
+end
+
+function ns.StackToBank() StartMover("stack") end
+
+function ns.SendMatsToBank()
+	if not ns.atBank then
+		ns.Print("Open the bank first, then send the materials.")
+		return
+	end
+	StartMover("mats")
 end
