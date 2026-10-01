@@ -805,7 +805,12 @@ function ns.CreateWindow(kind)
 		keep:HookScript("OnLeave", function() GameTooltip:Hide() end)
 		keep:Hide()
 		f.keep = keep
-        -- ...
+        local money = CreateFrame("Frame", "RatStashMoney", f, "SmallMoneyFrameTemplate")
+		local MONEY_SCALE = 1.15
+		money:SetScale(MONEY_SCALE)
+		money:SetFrameLevel(f:GetFrameLevel() + 3)
+		money:SetPoint("BOTTOMRIGHT", (-PAD + 4) / MONEY_SCALE, (PAD + 2) / MONEY_SCALE)
+		f.money = money
 	else
 		local offline = ns.Font(f:CreateFontString(nil, "OVERLAY"), 11)
 		offline:SetTextColor(ns.rgb(ns.C.textDim))
@@ -829,6 +834,9 @@ function ns.CreateWindow(kind)
 
 	f:SetScript("OnShow", function(self)
 		PlaySound("igBackPackOpen")
+		if self.money then
+			MoneyFrame_Update(self.money:GetName(), GetMoney())
+		end
 		self:Layout()
 	end)
 	f:SetScript("OnHide", function(self)
@@ -1006,3 +1014,10 @@ function ns.SendMatsToBank()
 	end
 	StartMover("mats")
 end
+
+-- Update money frame when player balance changes
+ns.On("PLAYER_MONEY", function()
+	if ns.windows.bags and ns.windows.bags:IsShown() and ns.windows.bags.money then
+		MoneyFrame_Update(ns.windows.bags.money:GetName(), GetMoney())
+	end
+end)
