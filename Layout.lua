@@ -308,7 +308,8 @@ function ns.BuildSections(kind)
 		end
 		if #empties > 0 then
 			local freeList = FreeEntries(empties)
-			-- Mark Free as small block so it can sit side-by-side with gear
+			-- Fetch configured columns from DB directly to prevent nil reference
+			local cols = db.columns[kind] or 10
 			sections[#sections + 1] = { title = "Free", style = "cat", entries = freeList, small = (#freeList < cols) }
 		end
 	else
