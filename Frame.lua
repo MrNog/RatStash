@@ -1,4 +1,5 @@
 local ADDON, ns = ...
+local L = ns.L
 
 local SIZE, GAP = 37, 4
 local STEP = SIZE + GAP
