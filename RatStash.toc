@@ -2,10 +2,13 @@
 ## Title: RatStash
 ## Notes: Bags and bank in one window each: auto sort, pinned items, gear set groups, raid loot kept apart.
 ## Author: Okanor
-## Version: 0.1.0
+## Version: 0.1.1
 ## SavedVariables: RatStashDB
 ## SavedVariablesPerCharacter: RatStashCharDB
 ## OptionalDeps: Okanvil
+
+Locales\enUS.lua
+Locales\ruRU.lua
 
 Core.lua
 Scan.lua
