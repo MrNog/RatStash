@@ -53,19 +53,19 @@ local function Item_OnEnter(self)
 	end
 	if e.freeCount then
 		if not GameTooltip:IsShown() then Tooltip_Anchor(self) end
-		GameTooltip:SetText(e.freeCount .. " free slots", 1, 1, 1)
-		GameTooltip:AddLine("Drop an item here to put it in a free slot.", 0.7, 0.7, 0.7)
+		GameTooltip:SetText(string.format(L["FREE_SLOTS_FMT"], e.freeCount), 1, 1, 1)
+		GameTooltip:AddLine(L["DROP_ITEM_FREE_SLOT"], 0.7, 0.7, 0.7)
 	end
 	if e.fresh then
-		GameTooltip:AddLine("Raid loot · " .. e.fresh, 0.24, 0.86, 0.52)
-		if e.split then GameTooltip:AddLine("Click to take these " .. e.split .. " off the stack.", 0.24, 0.86, 0.52) end
+		GameTooltip:AddLine(string.format(L["RAID_LOOT_LINE"], e.fresh), 0.24, 0.86, 0.52)
+		if e.split then GameTooltip:AddLine(string.format(L["CLICK_SPLIT_STACK"], e.split), 0.24, 0.86, 0.52) end
 		if e.reserved then GameTooltip:AddLine("Okanvil: " .. e.reserved, 1, 0.33, 0.33) end
 	end
 	if e.slots and e.slots > 1 then
-		GameTooltip:AddLine("Merged: " .. e.slots .. " bag slots", 0.43, 0.7, 1)
+		GameTooltip:AddLine(string.format(L["MERGED_BAG_SLOTS"], e.slots), 0.43, 0.7, 1)
 	end
 	if e.pinned then
-		GameTooltip:AddLine("Pinned · Alt-click to unpin", 0.43, 0.7, 1)
+		GameTooltip:AddLine(L["PINNED_TOOLTIP"], 0.43, 0.7, 1)
 	end
 	GameTooltip:Show()
 end
