@@ -4,8 +4,8 @@ if GetLocale() ~= "ruRU" then return end
 local L = ns.L
 
 -- Frame.lua
-L["BAGS_TITLE"] = "Сумки: %s"
-L["BANK_TITLE"] = "Банк: %s"
+L["BAGS_TITLE"] = "Сумки"
+L["BANK_TITLE"] = "Банк"
 L["FREE_SLOTS_FMT"] = "Свободно слотов: %s"
 L["DROP_ITEM_FREE_SLOT"] = "Поместите предмет сюда, чтобы положить его в свободный слот."
 L["RAID_LOOT_LINE"] = "Рейдовая добыча · %s"
