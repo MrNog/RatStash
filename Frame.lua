@@ -478,8 +478,8 @@ function W:Resize(cw, ch)
 	local barH = self.bagbar:IsShown() and BAGBAR_H or 0
 	self.content:ClearAllPoints()
 	self.content:SetPoint("TOPLEFT", PAD, -(PAD + TOP_H + barH + 8))
-	-- wide enough for the title row: name, search box and the icon buttons
-	local w = math.max(cw + PAD * 2, self.kind == "bags" and 440 or 390)
+	local minW = self.kind == "bags" and 485 or 420
+	local w = math.max(cw + PAD * 2, minW)
 	self:SetWidth(w)
 	local h = PAD + TOP_H + barH + 8 + ch + 8 + FOOT_H + PAD - 4
 	self:SetHeight(h)
@@ -736,7 +736,7 @@ function ns.CreateWindow(kind)
 	end
 
 	-- search: never focused automatically, loses focus on Enter, Escape, combat, world clicks, hide
-	local search = ns.FlatInput(f, name .. "Search", 170, 20)
+	local search = ns.FlatInput(f, name .. "Search", 140, 20)
 	search:SetPoint("RIGHT", anchor, "LEFT", -8, 0)
 	search:SetScript("OnEscapePressed", search.ClearFocus)
 	search:SetScript("OnEnterPressed", search.ClearFocus)
