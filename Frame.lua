@@ -289,21 +289,25 @@ end
 -- A merged slot re-adds its real slots, so using one of its stacks shows at once.
 -- If the slot the button points at runs out, it moves to one that still has the item.
 function W:RefreshMerged(b, e)
-	local total, slots, repOk, first, locked = 0, 0, false, nil, false
+	local total, slots, repOk, first, free = 0, 0, false, nil, nil
 	for _, m in ipairs(e.members) do
 		local _, count, lk, _, _, _, link = GetContainerItemInfo(m.bag, m.slot)
 		if link and ns.ItemID(link) == e.id then
 			total, slots = total + (count or 0), slots + 1
 			first = first or m
-			if m.bag == e.bag and m.slot == e.slot then repOk, locked = true, lk end
+			free = free or (not lk and m)
+			if m.bag == e.bag and m.slot == e.slot and not lk then repOk = true end
 		end
 	end
 	if not first then
 		self:SetEntry(b, { bag = e.bag, slot = e.slot, key = e.key }, false)
 		return
 	end
+	-- gray only when every slot is locked; otherwise point the button at one that can be picked up
+	local locked = not free
 	if not repOk then
-		e.bag, e.slot = first.bag, first.slot
+		local to = free or first
+		e.bag, e.slot = to.bag, to.slot
 		b:SetParent(self.dummy[e.bag])
 		b:SetID(e.slot)
 	end

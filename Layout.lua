@@ -116,6 +116,8 @@ local function Merge(list, trading)
 			m.count = m.count + e.count
 			m.slots = m.slots + 1
 			m.members[#m.members + 1] = { bag = e.bag, slot = e.slot }
+			-- the button acts on one real slot: keep it on an unlocked one (a gem sitting in a socket locks its slot)
+			if m.locked and not e.locked then m.bag, m.slot, m.locked = e.bag, e.slot, false end
 		else
 			if k then
 				e.slots = 1
