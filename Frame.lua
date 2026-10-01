@@ -361,28 +361,32 @@ function W:Layout()
 	end
 	for _, sec in ipairs(sections) do
 		local n = #sec.entries
-		-- in groups mode any block narrower than a full row can share a row with its neighbours
-		-- (gear always gets a row of its own)
 		sec.small = packed and n < cols and not sec.stay
-		sec.wcols = sec.small and n or cols
+		sec.wcols = sec.small and math.max(1, math.min(n, cols)) or cols
 		sec.w = sec.wcols * STEP - GAP
 		if sec.title and sec.small then
 			self.measure:SetText((L[sec.title] or sec.title):upper())
-			sec.w = math.max(sec.w, self.measure:GetStringWidth())
+			local titleW = self.measure:GetStringWidth() + 4
+			if titleW > sec.w then
+				sec.w = titleW
+				sec.wcols = math.max(sec.wcols, math.ceil((titleW + GAP) / STEP))
+			end
 		end
-		sec.h = (sec.title and HEADER_H or 0) + math.ceil(n / sec.wcols) * STEP - GAP
-		-- only plain category blocks may move up to fill a gap; pinned, sets, raid loot and free stay put
-		sec.movable = sec.small and sec.style == "cat" and sec.title ~= "Free" and not sec.stay
+		sec.h = (sec.title and HEADER_H or 0) + math.max(1, math.ceil(n / sec.wcols)) * STEP - GAP
+		sec.movable = sec.small and not sec.stay and sec.title ~= "Free"
 	end
 
 	local x, y, rowH = 0, 0, 0
 	local bi, hi = 0, 0
+
 	local function place(sec)
 		local th = sec.title and HEADER_H or 0
-		if x > 0 and (not sec.small or x + sec.w > totalW) then
-			y = y + rowH + 12
-			x, rowH = 0, 0
+		if x > 0 and (x + sec.w > totalW) then
+			y = y + rowH + 10
+			x = 0
+			rowH = 0
 		end
+
 		if sec.title then
 			hi = hi + 1
 			local fs = self:Header(hi)
@@ -392,7 +396,7 @@ function W:Layout()
 			fs:ClearAllPoints()
 			fs:SetPoint("TOPLEFT", content, "TOPLEFT", x, -y)
 			fs.rule:ClearAllPoints()
-			if sec.small then
+			if sec.small and (x + sec.w + 40 < totalW) then
 				fs.rule:Hide()
 			else
 				local ruleW = totalW - x - fs:GetStringWidth() - 8
@@ -401,37 +405,52 @@ function W:Layout()
 				if ruleW > 0 then fs.rule:Show() else fs.rule:Hide() end
 			end
 		end
+
 		for i, e in ipairs(sec.entries) do
 			bi = bi + 1
 			local b = self:ItemButton(bi)
-			local col, row = (i - 1) % sec.wcols, math.floor((i - 1) / sec.wcols)
+			local col = (i - 1) % sec.wcols
+			local row = math.floor((i - 1) / sec.wcols)
 			self:SetEntry(b, e, cached)
 			b:ClearAllPoints()
 			b:SetPoint("TOPLEFT", content, "TOPLEFT", x + col * STEP, -(y + th + row * STEP))
 			b:Show()
 		end
+
 		rowH = math.max(rowH, sec.h)
-		x = sec.small and (x + sec.w + SECTION_GAP) or (totalW + 1)
+		if sec.small then
+			x = x + sec.w + SECTION_GAP
+		else
+			y = y + rowH + 10
+			x = 0
+			rowH = 0
+		end
 	end
 
 	local queue = {}
 	for i, sec in ipairs(sections) do queue[i] = sec end
+
 	while #queue > 0 do
-		place(table.remove(queue, 1))
-		-- a gap is left on this row: pull up one of the next few small category blocks that fits it
-		local filled = true
-		while filled and x > 0 and x <= totalW do
-			filled = false
-			for i = 1, math.min(LOOKAHEAD, #queue) do
-				local s2 = queue[i]
-				if s2.movable and x + s2.w <= totalW then
-					place(table.remove(queue, i))
-					filled = true
+		local sec = table.remove(queue, 1)
+		place(sec)
+
+		local spaceLeft = totalW - x
+		local placedExtra = true
+		while placedExtra and spaceLeft >= (STEP * 2) do
+			placedExtra = false
+			for i = 1, #queue do
+				local candidate = queue[i]
+				if candidate.movable and candidate.w <= spaceLeft then
+					table.remove(queue, i)
+					place(candidate)
+					spaceLeft = totalW - x
+					placedExtra = true
 					break
 				end
 			end
 		end
 	end
+
 	y = y + rowH
 
 	for i = bi + 1, #self.buttons do
