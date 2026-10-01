@@ -1,4 +1,5 @@
 local ADDON, ns = ...
+local L = ns.L
 
 -- Okanvil's look (flat panels, 1px hairlines, gold accent on neutral dark), copied so RatStash
 -- matches it without needing Okanvil installed. Values are the same tokens as Okanvil.Colors.

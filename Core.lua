@@ -1,4 +1,5 @@
 local ADDON, ns = ...
+local L = ns.L
 
 ns.BAGS = { 0, 1, 2, 3, 4 }
 ns.BANK = { -1, 5, 6, 7, 8, 9, 10, 11 }
@@ -126,7 +127,7 @@ function ns.ToggleBank()
 	elseif ns.atBank or ns.char.bank then
 		w:Show()
 	else
-		ns.Print("Visit a bank once so RatStash can show it offline.")
+		ns.Print(L["BANK_OFFLINE_NOTICE"])
 	end
 end
 

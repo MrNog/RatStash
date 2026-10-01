@@ -1,4 +1,5 @@
 local ADDON, ns = ...
+local L = ns.L
 
 -- RatStash's own settings window, in the same flat style as the bag windows: two columns
 
@@ -122,11 +123,18 @@ local function Stepper(parent, y, label, hint, lo, hi, step, fmt, get, set)
 	return y - 42
 end
 
-local LAYOUTS = { { "grid", "One grid" }, { "sets", "Grid + sets" }, { "groups", "Groups" } }
+local LAYOUTS
 
 function ns.CreateOptions()
 	C, rgb = ns.C, ns.rgb
 	local db = ns.db
+
+	LAYOUTS = { 
+		{ "grid", L["ONE_GRID"] }, 
+		{ "sets", L["GRID_SETS"] }, 
+		{ "groups", L["GROUPS"] } 
+	}
+
 	panel = CreateFrame("Frame", "RatStashOptions", UIParent)
 	panel:Hide()
 	panel:SetWidth(MARGIN * 2 + COL_W * 2 + COL_GAP)
@@ -148,7 +156,7 @@ function ns.CreateOptions()
 	head:SetScript("OnDragStop", function() panel:StopMovingOrSizing() end)
 	local title = Text(head, 14, C.accentText)
 	title:SetPoint("LEFT", MARGIN - 1, 0)
-	title:SetText("RatStash settings")
+	title:SetText(L["OPT_TITLE"])
 	local rule = ns.Rule(head)
 	rule:SetPoint("BOTTOMLEFT"); rule:SetPoint("BOTTOMRIGHT")
 	local close = ns.FlatButton(head, "X", 22, 20)
@@ -158,52 +166,52 @@ function ns.CreateOptions()
 	-- left column: how the windows are laid out, and what items show
 	colX = MARGIN
 	local y = -46
-	y = Section(panel, y, "Layout")
-	y = Check(panel, y, "Auto sort", "Fixed order. Off: items show where they really are, like Bagnon.",
+	y = Section(panel, y, L["SEC_LAYOUT"])
+	y = Check(panel, y, L["AUTO_SORT"], L["AUTO_SORT_DESC"],
 		function() return db.sort end, function(v) db.sort = v end)
-	y = Choice(panel, y, "Bags layout", "One grid, a group per gear set plus one grid, or a block per kind.",
+	y = Choice(panel, y, L["BAGS_LAYOUT"], L["BAGS_LAYOUT_DESC"],
 		LAYOUTS, function() return db.layout.bags end, function(v) db.layout.bags = v end)
-	y = Choice(panel, y, "Bank layout", "Same choices, for the bank window.",
+	y = Choice(panel, y, L["BANK_LAYOUT"], L["BANK_LAYOUT_DESC"],
 		LAYOUTS, function() return db.layout.bank end, function(v) db.layout.bank = v end)
-	y = Choice(panel, y, "Pinned items", "Alt-click any item to pin or unpin it.",
-		{ { "top", "At the top" }, { "bottom", "At the bottom" } },
+	y = Choice(panel, y, L["PINNED_ITEMS"], L["PINNED_ITEMS_DESC"],
+		{ { "top", L["AT_THE_TOP"] }, { "bottom", L["AT_THE_BOTTOM"] } },
 		function() return db.pinAt end, function(v) db.pinAt = v end)
-	y = Choice(panel, y, "Empty slots", "One slot with the free count (drop items on it), or every empty slot.",
-		{ { "stack", "One slot" }, { "expand", "Every slot" } },
+	y = Choice(panel, y, L["EMPTY_SLOTS"], L["EMPTY_SLOTS_DESC"],
+		{ { "stack", L["ONE_SLOT"] }, { "expand", L["EVERY_SLOT"] } },
 		function() return db.freeMode end, function(v) db.freeMode = v end)
 	local leftEnd = y
 
 	-- right column: size and look, item badges, virtual stacks
 	colX = MARGIN + COL_W + COL_GAP
 	y = -46
-	y = Section(panel, y, "Size & look")
-	y = Stepper(panel, y, "Bags columns", "Items per row in the bags window.", 6, 20, 1, "%d",
+	y = Section(panel, y, L["SEC_SIZE_LOOK"])
+	y = Stepper(panel, y, L["BAGS_COLUMNS"], L["BAGS_COLUMNS_DESC"], 6, 20, 1, "%d",
 		function() return db.columns.bags end, function(v) db.columns.bags = v end)
-	y = Stepper(panel, y, "Bank columns", "Items per row in the bank window.", 8, 24, 1, "%d",
+	y = Stepper(panel, y, L["BANK_COLUMNS"], L["BANK_COLUMNS_DESC"], 8, 24, 1, "%d",
 		function() return db.columns.bank end, function(v) db.columns.bank = v end)
-	y = Stepper(panel, y, "Scale", "Size of both windows.", 0.6, 1.4, 0.05, "%.2f",
+	y = Stepper(panel, y, L["SCALE"], L["SCALE_DESC"], 0.6, 1.4, 0.05, "%.2f",
 		function() return db.scale end, function(v) db.scale = v end)
-	y = Check(panel, y, "Background art", "The stash picture behind the items. Off: plain dark.",
+	y = Check(panel, y, L["BG_ART"], L["BG_ART_DESC"],
 		function() return db.bgOn end, function(v) db.bgOn = v end)
-	y = Stepper(panel, y, "Art strength", "How much the picture shows through.", 0.1, 1, 0.1, "%.1f",
+	y = Stepper(panel, y, L["ART_STRENGTH"], L["ART_STRENGTH_DESC"], 0.1, 1, 0.1, "%.1f",
 		function() return db.bgArt end, function(v) db.bgArt = v end)
 
-	y = Section(panel, y - 6, "Items")
-	y = Check(panel, y, "Show item level", "Gear shows its item level in the quality color.",
+	y = Section(panel, y - 6, L["SEC_ITEMS"])
+	y = Check(panel, y, L["SHOW_ILVL"], L["SHOW_ILVL_DESC"],
 		function() return db.showIlvl end, function(v) db.showIlvl = v end)
-	y = Check(panel, y, "Show BoE tag", "Bind-on-equip gear gets a gold BoE tag.",
+	y = Check(panel, y, L["SHOW_BOE"], L["SHOW_BOE_DESC"],
 		function() return db.showBoE end, function(v) db.showBoE = v end)
-	y = Check(panel, y, "Raid loot group as master looter", "While you are master looter, raid loot gets its own group.",
+	y = Check(panel, y, L["ML_GROUP"], L["ML_GROUP_DESC"],
 		function() return db.mlGroup end, function(v) db.mlGroup = v end)
 
 	-- virtual stacks go under the left column, which is shorter
 	colX = MARGIN
-	local vy = Section(panel, leftEnd - 6, "Virtual stacks")
-	vy = Check(panel, vy, "Merge unstackable items", "Identical items that can't stack show as one slot.",
+	local vy = Section(panel, leftEnd - 6, L["SEC_VIRTUAL_STACKS"])
+	vy = Check(panel, vy, L["MERGE_UNSTACKABLE"], L["MERGE_UNSTACKABLE_DESC"],
 		function() return db.vs.others end, function(v) db.vs.others = v end)
-	vy = Check(panel, vy, "Merge stackable items", "Full stacks of the same item show as one slot.",
+	vy = Check(panel, vy, L["MERGE_STACKABLE"], L["MERGE_STACKABLE_DESC"],
 		function() return db.vs.stack end, function(v) db.vs.stack = v end)
-	vy = Check(panel, vy, "... including incomplete stacks", "Partial stacks join the merged slot too.",
+	vy = Check(panel, vy, L["MERGE_INCOMPLETE"], L["MERGE_INCOMPLETE_DESC"],
 		function() return db.vs.incomplete end, function(v) db.vs.incomplete = v end)
 
 	panel:SetHeight(-math.min(y, vy) + 10)

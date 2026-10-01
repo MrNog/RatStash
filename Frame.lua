@@ -1,4 +1,5 @@
 local ADDON, ns = ...
+local L = ns.L
 
 local SIZE, GAP = 37, 4
 local STEP = SIZE + GAP
@@ -52,19 +53,19 @@ local function Item_OnEnter(self)
 	end
 	if e.freeCount then
 		if not GameTooltip:IsShown() then Tooltip_Anchor(self) end
-		GameTooltip:SetText(e.freeCount .. " free slots", 1, 1, 1)
-		GameTooltip:AddLine("Drop an item here to put it in a free slot.", 0.7, 0.7, 0.7)
+		GameTooltip:SetText(string.format(L["FREE_SLOTS_FMT"], e.freeCount), 1, 1, 1)
+		GameTooltip:AddLine(L["DROP_ITEM_FREE_SLOT"], 0.7, 0.7, 0.7)
 	end
 	if e.fresh then
-		GameTooltip:AddLine("Raid loot · " .. e.fresh, 0.24, 0.86, 0.52)
-		if e.split then GameTooltip:AddLine("Click to take these " .. e.split .. " off the stack.", 0.24, 0.86, 0.52) end
+		GameTooltip:AddLine(string.format(L["RAID_LOOT_LINE"], e.fresh), 0.24, 0.86, 0.52)
+		if e.split then GameTooltip:AddLine(string.format(L["CLICK_SPLIT_STACK"], e.split), 0.24, 0.86, 0.52) end
 		if e.reserved then GameTooltip:AddLine("Okanvil: " .. e.reserved, 1, 0.33, 0.33) end
 	end
 	if e.slots and e.slots > 1 then
-		GameTooltip:AddLine("Merged: " .. e.slots .. " bag slots", 0.43, 0.7, 1)
+		GameTooltip:AddLine(string.format(L["MERGED_BAG_SLOTS"], e.slots), 0.43, 0.7, 1)
 	end
 	if e.pinned then
-		GameTooltip:AddLine("Pinned · Alt-click to unpin", 0.43, 0.7, 1)
+		GameTooltip:AddLine(L["PINNED_TOOLTIP"], 0.43, 0.7, 1)
 	end
 	GameTooltip:Show()
 end
@@ -360,38 +361,44 @@ function W:Layout()
 	end
 	for _, sec in ipairs(sections) do
 		local n = #sec.entries
-		-- in groups mode any block narrower than a full row can share a row with its neighbours
-		-- (gear always gets a row of its own)
+		-- Treat any block narrower than window columns as small
 		sec.small = packed and n < cols and not sec.stay
-		sec.wcols = sec.small and n or cols
+		sec.wcols = sec.small and math.max(1, math.min(n, cols)) or cols
 		sec.w = sec.wcols * STEP - GAP
 		if sec.title and sec.small then
-			self.measure:SetText(sec.title:upper())
-			sec.w = math.max(sec.w, self.measure:GetStringWidth())
+			self.measure:SetText((L[sec.title] or sec.title):upper())
+			local titleW = self.measure:GetStringWidth() + 4
+			if titleW > sec.w then
+				sec.w = titleW
+				sec.wcols = math.max(sec.wcols, math.ceil((titleW + GAP) / STEP))
+			end
 		end
-		sec.h = (sec.title and HEADER_H or 0) + math.ceil(n / sec.wcols) * STEP - GAP
-		-- only plain category blocks may move up to fill a gap; pinned, sets, raid loot and free stay put
-		sec.movable = sec.small and sec.style == "cat" and sec.title ~= "Free" and not sec.stay
+		sec.h = (sec.title and HEADER_H or 0) + math.max(1, math.ceil(n / sec.wcols)) * STEP - GAP
+		-- Pinned and Free sections stay in place; only regular categories can fill row gaps
+		sec.movable = sec.small and not sec.stay and sec.title ~= "Free" and sec.style ~= "pin"
 	end
 
 	local x, y, rowH = 0, 0, 0
 	local bi, hi = 0, 0
+
 	local function place(sec)
 		local th = sec.title and HEADER_H or 0
-		if x > 0 and (not sec.small or x + sec.w > totalW) then
-			y = y + rowH + 12
-			x, rowH = 0, 0
+		if x > 0 and (x + sec.w > totalW) then
+			y = y + rowH + 10
+			x = 0
+			rowH = 0
 		end
+
 		if sec.title then
 			hi = hi + 1
 			local fs = self:Header(hi)
-			fs:SetText(sec.title:upper())
+			fs:SetText((L[sec.title] or sec.title):upper())
 			local c = STYLE_COLOR[sec.style] or STYLE_COLOR.cat
 			fs:SetTextColor(c[1], c[2], c[3])
 			fs:ClearAllPoints()
 			fs:SetPoint("TOPLEFT", content, "TOPLEFT", x, -y)
 			fs.rule:ClearAllPoints()
-			if sec.small then
+			if sec.small and (x + sec.w + 40 < totalW) then
 				fs.rule:Hide()
 			else
 				local ruleW = totalW - x - fs:GetStringWidth() - 8
@@ -400,37 +407,52 @@ function W:Layout()
 				if ruleW > 0 then fs.rule:Show() else fs.rule:Hide() end
 			end
 		end
+
 		for i, e in ipairs(sec.entries) do
 			bi = bi + 1
 			local b = self:ItemButton(bi)
-			local col, row = (i - 1) % sec.wcols, math.floor((i - 1) / sec.wcols)
+			local col = (i - 1) % sec.wcols
+			local row = math.floor((i - 1) / sec.wcols)
 			self:SetEntry(b, e, cached)
 			b:ClearAllPoints()
 			b:SetPoint("TOPLEFT", content, "TOPLEFT", x + col * STEP, -(y + th + row * STEP))
 			b:Show()
 		end
+
 		rowH = math.max(rowH, sec.h)
-		x = sec.small and (x + sec.w + SECTION_GAP) or (totalW + 1)
+		if sec.small then
+			x = x + sec.w + SECTION_GAP
+		else
+			y = y + rowH + 10
+			x = 0
+			rowH = 0
+		end
 	end
 
 	local queue = {}
 	for i, sec in ipairs(sections) do queue[i] = sec end
+
 	while #queue > 0 do
-		place(table.remove(queue, 1))
-		-- a gap is left on this row: pull up one of the next few small category blocks that fits it
-		local filled = true
-		while filled and x > 0 and x <= totalW do
-			filled = false
-			for i = 1, math.min(LOOKAHEAD, #queue) do
-				local s2 = queue[i]
-				if s2.movable and x + s2.w <= totalW then
-					place(table.remove(queue, i))
-					filled = true
+		local sec = table.remove(queue, 1)
+		place(sec)
+
+		local spaceLeft = totalW - x
+		local placedExtra = true
+		while placedExtra and spaceLeft >= (STEP * 2) do
+			placedExtra = false
+			for i = 1, #queue do
+				local candidate = queue[i]
+				if candidate.movable and candidate.w <= spaceLeft then
+					table.remove(queue, i)
+					place(candidate)
+					spaceLeft = totalW - x
+					placedExtra = true
 					break
 				end
 			end
 		end
 	end
+
 	y = y + rowH
 
 	for i = bi + 1, #self.buttons do
@@ -443,7 +465,7 @@ function W:Layout()
 	content:SetWidth(totalW)
 	content:SetHeight(math.max(y, SIZE))
 
-	self.freeText:SetText(free .. " free")
+	self.freeText:SetText(string.format(L["FREE_SUMMARY"], free))
 	if self.kind == "bags" then
 		if ns.HasRaidLoot() then self.keep:Show() else self.keep:Hide() end
 	else
@@ -458,8 +480,10 @@ function W:Resize(cw, ch)
 	local barH = self.bagbar:IsShown() and BAGBAR_H or 0
 	self.content:ClearAllPoints()
 	self.content:SetPoint("TOPLEFT", PAD, -(PAD + TOP_H + barH + 8))
-	-- wide enough for the title row: name, search box and the icon buttons
-	local w = math.max(cw + PAD * 2, self.kind == "bags" and 440 or 390)
+	-- Lower minimum width to prevent empty space when column count is below 11.
+	-- 295px perfectly fits: Title + 100px Search + Action Buttons + Padding.
+	local minW = self.kind == "bags" and 295 or 240
+	local w = math.max(cw + PAD * 2, minW)
 	self:SetWidth(w)
 	local h = PAD + TOP_H + barH + 8 + ch + 8 + FOOT_H + PAD - 4
 	self:SetHeight(h)
@@ -546,7 +570,7 @@ local function Bag_OnEnter(self)
 		GameTooltip:SetText(EQUIP_CONTAINER, 1, 1, 1)
 	end
 	if bag ~= BACKPACK_CONTAINER and bag ~= BANK_CONTAINER and not self.win.cached then
-		GameTooltip:AddLine("Drag a bag here to swap it.", 0.7, 0.7, 0.7)
+		GameTooltip:AddLine(L["DRAG_BAG_SWAP"], 0.7, 0.7, 0.7)
 	end
 	GameTooltip:Show()
 	self.win.hoverBag = bag
@@ -682,32 +706,32 @@ function ns.CreateWindow(kind)
 		ns.db.pos[kind] = { p, "UIParent", rp, x, y }
 	end)
 
+	-- Concise window title without redundant player name
 	local title = ns.Font(drag:CreateFontString(nil, "OVERLAY"), 14)
 	title:SetTextColor(ns.rgb(ns.C.accentText))
 	title:SetPoint("LEFT", 0, 0)
-	title:SetText(UnitName("player") .. (kind == "bags" and "'s Bags" or "'s Bank"))
+	title:SetText(kind == "bags" and L["BAGS_TITLE"] or L["BANK_TITLE"])
 
 	local close = ns.FlatButton(f, "X", 22, 20)
 	close:SetPoint("TOPRIGHT", -PAD, -PAD - 2)
 	close:SetScript("OnClick", function() f:Hide() end)
 
-	local opts = IconButton(f, [[Interface\Icons\INV_Misc_Gear_01]], "Options", function() ns.OpenOptions() end)
+	local opts = IconButton(f, [[Interface\Icons\INV_Misc_Gear_01]], L["OPTIONS_TIP"], function() ns.OpenOptions() end)
 	opts:SetPoint("RIGHT", close, "LEFT", -4, 0)
-	local bagsBtn = IconButton(f, [[Interface\Icons\INV_Misc_Bag_08]], "Show bag slots", function()
+	local bagsBtn = IconButton(f, [[Interface\Icons\INV_Misc_Bag_08]], L["SHOW_BAG_SLOTS"], function()
 		if f.bagbar:IsShown() then f.bagbar:Hide() else f.bagbar:Show() end
 		f:Layout()
 	end)
 	bagsBtn:SetPoint("RIGHT", opts, "LEFT", -4, 0)
 	local anchor = bagsBtn
 	if kind == "bags" then
-		local bankBtn = IconButton(f, [[Interface\Icons\INV_Misc_Coin_01]], "Bank (works offline)", ns.ToggleBank)
+		local bankBtn = IconButton(f, [[Interface\Icons\INV_Misc_Coin_01]], L["BANK_OFFLINE_TIP"], ns.ToggleBank)
 		bankBtn:SetPoint("RIGHT", bagsBtn, "LEFT", -4, 0)
-		-- dimmed away from a bank: moving items only works with the bank open
-		local mats = IconButton(f, [[Interface\Icons\INV_Ore_Saronite_01]], "Send mats to bank", ns.SendMatsToBank)
+		
+		local mats = IconButton(f, [[Interface\Icons\INV_Ore_Saronite_01]], L["SEND_MATS_TO_BANK"], ns.SendMatsToBank)
 		mats:HookScript("OnEnter", function()
-			GameTooltip:AddLine("Trade goods, dusts and gems go to the bank, onto their stacks first. "
-				.. "Pinned items stay.", 0.7, 0.7, 0.7, true)
-			if not ns.atBank then GameTooltip:AddLine("Open the bank first.", 1, 0.82, 0) end
+			GameTooltip:AddLine(L["SEND_MATS_DESC"], 0.7, 0.7, 0.7, true)
+			if not ns.atBank then GameTooltip:AddLine(L["OPEN_BANK_FIRST"], 1, 0.82, 0) end
 			GameTooltip:Show()
 		end)
 		mats:SetPoint("RIGHT", bankBtn, "LEFT", -4, 0)
@@ -716,9 +740,9 @@ function ns.CreateWindow(kind)
 		anchor = mats
 	end
 
-	-- search: never focused automatically, loses focus on Enter, Escape, combat, world clicks, hide
-	local search = ns.FlatInput(f, name .. "Search", 170, 20)
-	search:SetPoint("RIGHT", anchor, "LEFT", -8, 0)
+	-- Compact search box width (100px) to allow narrower window configurations
+	local search = ns.FlatInput(f, name .. "Search", 100, 20)
+	search:SetPoint("RIGHT", anchor, "LEFT", -6, 0)
 	search:SetScript("OnEscapePressed", search.ClearFocus)
 	search:SetScript("OnEnterPressed", search.ClearFocus)
 	local hint = ns.Font(search:CreateFontString(nil, "OVERLAY"), 11)
@@ -765,7 +789,7 @@ function ns.CreateWindow(kind)
 	f.freeText = freeText
 
 	if kind == "bags" then
-		local keep = ns.FlatButton(f, "Keep raid loot", 100, 18, true)
+		local keep = ns.FlatButton(f, L["KEEP_RAID_LOOT"], 110, 18, true)
 		keep:SetPoint("LEFT", freeText, "RIGHT", 12, 0)
 		keep:SetScript("OnClick", function()
 			ns.KeepRaidLoot()
@@ -774,34 +798,34 @@ function ns.CreateWindow(kind)
 		end)
 		keep:HookScript("OnEnter", function(self)
 			Tooltip_Anchor(self)
-			GameTooltip:SetText("Keep raid loot", 1, 1, 1)
-			GameTooltip:AddLine("Treat everything looted in this raid as your own items.", 0.7, 0.7, 0.7, true)
+			GameTooltip:SetText(L["KEEP_RAID_LOOT"], 1, 1, 1)
+			GameTooltip:AddLine(L["KEEP_RAID_LOOT_DESC"], 0.7, 0.7, 0.7, true)
 			GameTooltip:Show()
 		end)
 		keep:HookScript("OnLeave", function() GameTooltip:Hide() end)
 		keep:Hide()
 		f.keep = keep
-
-		local money = CreateFrame("Frame", "RatStashMoney", f, "SmallMoneyFrameTemplate")
-		local MONEY_SCALE = 1.3
+        local money = CreateFrame("Frame", "RatStashMoney", f, "SmallMoneyFrameTemplate")
+		local MONEY_SCALE = 1.15
 		money:SetScale(MONEY_SCALE)
-		-- offsets are in the money frame's own (scaled) units
-		money:SetPoint("BOTTOMRIGHT", (-PAD + 12) / MONEY_SCALE, (PAD + 1) / MONEY_SCALE)
+		money:SetFrameLevel(f:GetFrameLevel() + 3)
+		money:SetPoint("BOTTOMRIGHT", (-PAD + 4) / MONEY_SCALE, (PAD + 2) / MONEY_SCALE)
+		f.money = money
 	else
 		local offline = ns.Font(f:CreateFontString(nil, "OVERLAY"), 11)
 		offline:SetTextColor(ns.rgb(ns.C.textDim))
 		offline:SetPoint("BOTTOMRIGHT", -PAD - 2, PAD + 3)
-		offline:SetText("Offline copy · visit a bank to use it")
+		offline:SetText(L["OFFLINE_BANK_NOTE"])
 		offline:Hide()
 		f.offline = offline
 
-		local stack = ns.FlatButton(f, "Stack to bank", 100, 18, true)
+		local stack = ns.FlatButton(f, L["STACK_TO_BANK"], 110, 18, true)
 		stack:SetPoint("LEFT", freeText, "RIGHT", 12, 0)
 		stack:SetScript("OnClick", ns.StackToBank)
 		stack:HookScript("OnEnter", function(self)
 			Tooltip_Anchor(self)
-			GameTooltip:SetText("Stack to bank", 1, 1, 1)
-			GameTooltip:AddLine("Moves stackable items you already keep in the bank onto their bank stacks. Pinned items and raid loot stay in your bags.", 0.7, 0.7, 0.7, true)
+			GameTooltip:SetText(L["STACK_TO_BANK"], 1, 1, 1)
+			GameTooltip:AddLine(L["STACK_TO_BANK_DESC"], 0.7, 0.7, 0.7, true)
 			GameTooltip:Show()
 		end)
 		stack:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -810,6 +834,9 @@ function ns.CreateWindow(kind)
 
 	f:SetScript("OnShow", function(self)
 		PlaySound("igBackPackOpen")
+		if self.money then
+			MoneyFrame_Update(self.money:GetName(), GetMoney())
+		end
 		self:Layout()
 	end)
 	f:SetScript("OnHide", function(self)
@@ -935,11 +962,11 @@ local function Stop()
 	mover:Hide()
 	waitFor = nil
 	if moved > 0 then
-		local what = moved .. (moved == 1 and " stack" or " stacks")
-		ns.Print(mode == "mats" and ("Sent " .. what .. " of materials to the bank.")
-			or ("Stacked " .. what .. " into the bank."))
+		local what = moved .. (moved == 1 and L["STACK_SINGLE"] or L["STACK_MULTI"])
+		ns.Print(mode == "mats" and string.format(L["SENT_MATS_REPORT"], what)
+			or string.format(L["STACKED_REPORT"], what))
 	elseif mode == "mats" then
-		ns.Print("No materials to send, or the bank is full.")
+		ns.Print(L["NO_MATS_OR_FULL"])
 	end
 	ns.Dirty()
 end
@@ -987,3 +1014,10 @@ function ns.SendMatsToBank()
 	end
 	StartMover("mats")
 end
+
+-- Update money frame when player balance changes
+ns.On("PLAYER_MONEY", function()
+	if ns.windows.bags and ns.windows.bags:IsShown() and ns.windows.bags.money then
+		MoneyFrame_Update(ns.windows.bags.money:GetName(), GetMoney())
+	end
+end)

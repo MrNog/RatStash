@@ -1,4 +1,5 @@
 local ADDON, ns = ...
+local L = ns.L
 
 -- fixed order everything is drawn in; nothing here moves real items
 -- gear comes last: it changes the most, and at the bottom it has room to grow
@@ -269,7 +270,7 @@ function ns.BuildSections(kind)
 	local function setGroups()
 		for _, name in ipairs(setOrder) do
 			local pieces = take(function(e) return e.set == name and not e.pinned and not e.fresh end)
-			add("Set: " .. name, "set", pieces, #pieces <= ns.SMALL_GROUP)
+			add(string.format(L["SET_HEADER"], name), "set", pieces, #pieces <= ns.SMALL_GROUP)
 		end
 	end
 
@@ -278,8 +279,8 @@ function ns.BuildSections(kind)
 		local pinBottom = db.pinAt == "bottom"
 		local function consumables()
 			local list = Merge(take(function(e) return e.group == "con" end), trading)
-			add("Consumables", "cat", list)
-			if #list > 0 then sections[#sections].stay = true end
+			-- Allow Consumables to pack alongside other small blocks if not filling a full row
+			add("Consumables", "cat", list, #list <= ns.SMALL_GROUP)
 		end
 		if not pinBottom then
 			add("Pinned", "pin", Merge(pinned, trading), #pinned <= ns.SMALL_GROUP)
@@ -297,8 +298,8 @@ function ns.BuildSections(kind)
 				end
 			else
 				local list = Merge(take(function(e) return e.group == c[1] end), trading)
+				-- Allow Gear to share row if it has empty space remaining
 				add(c[2], c[1] == "fresh" and "raid" or "cat", list, #list <= ns.SMALL_GROUP)
-				if c[1] == "gear" and #list > 0 then sections[#sections].stay = true end
 			end
 		end
 		if pinBottom then
@@ -306,7 +307,10 @@ function ns.BuildSections(kind)
 			add("Pinned", "pin", Merge(pinned, trading), #pinned <= ns.SMALL_GROUP)
 		end
 		if #empties > 0 then
-			sections[#sections + 1] = { title = "Free", style = "cat", entries = FreeEntries(empties) }
+			local freeList = FreeEntries(empties)
+			-- Fetch configured columns from DB directly to prevent nil reference
+			local cols = db.columns[kind] or 10
+			sections[#sections + 1] = { title = "Free", style = "cat", entries = freeList, small = (#freeList < cols) }
 		end
 	else
 		if mode == "sets" then setGroups() end
