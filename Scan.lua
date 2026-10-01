@@ -1,4 +1,5 @@
 local ADDON, ns = ...
+local L = ns.L
 
 -- records per window: one per real bag slot, empty slots included
 ns.records = { bags = {}, bank = {} }
