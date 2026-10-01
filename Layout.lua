@@ -1,4 +1,5 @@
 local ADDON, ns = ...
+local L = ns.L
 
 -- fixed order everything is drawn in; nothing here moves real items
 -- gear comes last: it changes the most, and at the bottom it has room to grow
