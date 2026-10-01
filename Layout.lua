@@ -270,7 +270,7 @@ function ns.BuildSections(kind)
 	local function setGroups()
 		for _, name in ipairs(setOrder) do
 			local pieces = take(function(e) return e.set == name and not e.pinned and not e.fresh end)
-			add("Set: " .. name, "set", pieces, #pieces <= ns.SMALL_GROUP)
+			add(string.format(L["SET_HEADER"], name), "set", pieces, #pieces <= ns.SMALL_GROUP)
 		end
 	end
 
