@@ -10,8 +10,8 @@ ns.L = L
 -- ========================================================
 -- Window Headers & Controls (Frame.lua)
 -- ========================================================
-L["BAGS_TITLE"] = "%s's Bags"
-L["BANK_TITLE"] = "%s's Bank"
+L["BAGS_TITLE"] = "Bags"
+L["BANK_TITLE"] = "Bank"
 L["FREE_SLOTS_FMT"] = "%s free slots"
 L["DROP_ITEM_FREE_SLOT"] = "Drop an item here to put it in a free slot."
 L["RAID_LOOT_LINE"] = "Raid loot · %s"
