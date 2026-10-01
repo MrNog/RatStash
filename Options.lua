@@ -1,4 +1,5 @@
 local ADDON, ns = ...
+local L = ns.L
 
 -- RatStash's own settings window, in the same flat style as the bag windows: two columns
 
