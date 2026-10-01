@@ -478,7 +478,9 @@ function W:Resize(cw, ch)
 	local barH = self.bagbar:IsShown() and BAGBAR_H or 0
 	self.content:ClearAllPoints()
 	self.content:SetPoint("TOPLEFT", PAD, -(PAD + TOP_H + barH + 8))
-	local minW = self.kind == "bags" and 485 or 420
+	-- Lower minimum width to prevent empty space when column count is below 11.
+	-- 295px perfectly fits: Title + 100px Search + Action Buttons + Padding.
+	local minW = self.kind == "bags" and 295 or 240
 	local w = math.max(cw + PAD * 2, minW)
 	self:SetWidth(w)
 	local h = PAD + TOP_H + barH + 8 + ch + 8 + FOOT_H + PAD - 4
@@ -702,10 +704,11 @@ function ns.CreateWindow(kind)
 		ns.db.pos[kind] = { p, "UIParent", rp, x, y }
 	end)
 
+	-- Concise window title without redundant player name
 	local title = ns.Font(drag:CreateFontString(nil, "OVERLAY"), 14)
 	title:SetTextColor(ns.rgb(ns.C.accentText))
 	title:SetPoint("LEFT", 0, 0)
-	title:SetText(string.format(kind == "bags" and L["BAGS_TITLE"] or L["BANK_TITLE"], UnitName("player")))
+	title:SetText(kind == "bags" and L["BAGS_TITLE"] or L["BANK_TITLE"])
 
 	local close = ns.FlatButton(f, "X", 22, 20)
 	close:SetPoint("TOPRIGHT", -PAD, -PAD - 2)
@@ -735,9 +738,9 @@ function ns.CreateWindow(kind)
 		anchor = mats
 	end
 
-	-- search: never focused automatically, loses focus on Enter, Escape, combat, world clicks, hide
-	local search = ns.FlatInput(f, name .. "Search", 140, 20)
-	search:SetPoint("RIGHT", anchor, "LEFT", -8, 0)
+	-- Compact search box width (100px) to allow narrower window configurations
+	local search = ns.FlatInput(f, name .. "Search", 100, 20)
+	search:SetPoint("RIGHT", anchor, "LEFT", -6, 0)
 	search:SetScript("OnEscapePressed", search.ClearFocus)
 	search:SetScript("OnEnterPressed", search.ClearFocus)
 	local hint = ns.Font(search:CreateFontString(nil, "OVERLAY"), 11)
