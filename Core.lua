@@ -127,7 +127,7 @@ function ns.ToggleBank()
 	elseif ns.atBank or ns.char.bank then
 		w:Show()
 	else
-		ns.Print("Visit a bank once so RatStash can show it offline.")
+		ns.Print(L["BANK_OFFLINE_NOTICE"])
 	end
 end
 
