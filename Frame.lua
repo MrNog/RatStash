@@ -361,7 +361,7 @@ function W:Layout()
 	end
 	for _, sec in ipairs(sections) do
 		local n = #sec.entries
-		-- Treat any block with fewer slots than window columns as compact
+		-- Treat any block narrower than window columns as small
 		sec.small = packed and n < cols and not sec.stay
 		sec.wcols = sec.small and math.max(1, math.min(n, cols)) or cols
 		sec.w = sec.wcols * STEP - GAP
@@ -374,8 +374,8 @@ function W:Layout()
 			end
 		end
 		sec.h = (sec.title and HEADER_H or 0) + math.max(1, math.ceil(n / sec.wcols)) * STEP - GAP
-		-- Allow Consumables, Gear and Free sections to move and pack tightly into row gaps
-		sec.movable = sec.small and not sec.stay
+		-- Pinned and Free sections stay in place; only regular categories can fill row gaps
+		sec.movable = sec.small and not sec.stay and sec.title ~= "Free" and sec.style ~= "pin"
 	end
 
 	local x, y, rowH = 0, 0, 0
