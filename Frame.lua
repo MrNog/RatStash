@@ -367,7 +367,7 @@ function W:Layout()
 		sec.wcols = sec.small and n or cols
 		sec.w = sec.wcols * STEP - GAP
 		if sec.title and sec.small then
-			self.measure:SetText(sec.title:upper())
+			self.measure:SetText((L[sec.title] or sec.title):upper())
 			sec.w = math.max(sec.w, self.measure:GetStringWidth())
 		end
 		sec.h = (sec.title and HEADER_H or 0) + math.ceil(n / sec.wcols) * STEP - GAP
@@ -386,7 +386,7 @@ function W:Layout()
 		if sec.title then
 			hi = hi + 1
 			local fs = self:Header(hi)
-			fs:SetText(sec.title:upper())
+			fs:SetText((L[sec.title] or sec.title):upper())
 			local c = STYLE_COLOR[sec.style] or STYLE_COLOR.cat
 			fs:SetTextColor(c[1], c[2], c[3])
 			fs:ClearAllPoints()
@@ -444,7 +444,7 @@ function W:Layout()
 	content:SetWidth(totalW)
 	content:SetHeight(math.max(y, SIZE))
 
-	self.freeText:SetText(free .. " free")
+	self.freeText:SetText(string.format(L["FREE_SUMMARY"], free))
 	if self.kind == "bags" then
 		if ns.HasRaidLoot() then self.keep:Show() else self.keep:Hide() end
 	else
@@ -547,7 +547,7 @@ local function Bag_OnEnter(self)
 		GameTooltip:SetText(EQUIP_CONTAINER, 1, 1, 1)
 	end
 	if bag ~= BACKPACK_CONTAINER and bag ~= BANK_CONTAINER and not self.win.cached then
-		GameTooltip:AddLine("Drag a bag here to swap it.", 0.7, 0.7, 0.7)
+		GameTooltip:AddLine(L["DRAG_BAG_SWAP"], 0.7, 0.7, 0.7)
 	end
 	GameTooltip:Show()
 	self.win.hoverBag = bag
@@ -686,29 +686,28 @@ function ns.CreateWindow(kind)
 	local title = ns.Font(drag:CreateFontString(nil, "OVERLAY"), 14)
 	title:SetTextColor(ns.rgb(ns.C.accentText))
 	title:SetPoint("LEFT", 0, 0)
-	title:SetText(UnitName("player") .. (kind == "bags" and "'s Bags" or "'s Bank"))
+	title:SetText(string.format(kind == "bags" and L["BAGS_TITLE"] or L["BANK_TITLE"], UnitName("player")))
 
 	local close = ns.FlatButton(f, "X", 22, 20)
 	close:SetPoint("TOPRIGHT", -PAD, -PAD - 2)
 	close:SetScript("OnClick", function() f:Hide() end)
 
-	local opts = IconButton(f, [[Interface\Icons\INV_Misc_Gear_01]], "Options", function() ns.OpenOptions() end)
+	local opts = IconButton(f, [[Interface\Icons\INV_Misc_Gear_01]], L["OPTIONS_TIP"], function() ns.OpenOptions() end)
 	opts:SetPoint("RIGHT", close, "LEFT", -4, 0)
-	local bagsBtn = IconButton(f, [[Interface\Icons\INV_Misc_Bag_08]], "Show bag slots", function()
+	local bagsBtn = IconButton(f, [[Interface\Icons\INV_Misc_Bag_08]], L["SHOW_BAG_SLOTS"], function()
 		if f.bagbar:IsShown() then f.bagbar:Hide() else f.bagbar:Show() end
 		f:Layout()
 	end)
 	bagsBtn:SetPoint("RIGHT", opts, "LEFT", -4, 0)
 	local anchor = bagsBtn
 	if kind == "bags" then
-		local bankBtn = IconButton(f, [[Interface\Icons\INV_Misc_Coin_01]], "Bank (works offline)", ns.ToggleBank)
+		local bankBtn = IconButton(f, [[Interface\Icons\INV_Misc_Coin_01]], L["BANK_OFFLINE_TIP"], ns.ToggleBank)
 		bankBtn:SetPoint("RIGHT", bagsBtn, "LEFT", -4, 0)
-		-- dimmed away from a bank: moving items only works with the bank open
-		local mats = IconButton(f, [[Interface\Icons\INV_Ore_Saronite_01]], "Send mats to bank", ns.SendMatsToBank)
+		
+		local mats = IconButton(f, [[Interface\Icons\INV_Ore_Saronite_01]], L["SEND_MATS_TO_BANK"], ns.SendMatsToBank)
 		mats:HookScript("OnEnter", function()
-			GameTooltip:AddLine("Trade goods, dusts and gems go to the bank, onto their stacks first. "
-				.. "Pinned items stay.", 0.7, 0.7, 0.7, true)
-			if not ns.atBank then GameTooltip:AddLine("Open the bank first.", 1, 0.82, 0) end
+			GameTooltip:AddLine(L["SEND_MATS_DESC"], 0.7, 0.7, 0.7, true)
+			if not ns.atBank then GameTooltip:AddLine(L["OPEN_BANK_FIRST"], 1, 0.82, 0) end
 			GameTooltip:Show()
 		end)
 		mats:SetPoint("RIGHT", bankBtn, "LEFT", -4, 0)
@@ -766,7 +765,7 @@ function ns.CreateWindow(kind)
 	f.freeText = freeText
 
 	if kind == "bags" then
-		local keep = ns.FlatButton(f, "Keep raid loot", 100, 18, true)
+		local keep = ns.FlatButton(f, L["KEEP_RAID_LOOT"], 110, 18, true)
 		keep:SetPoint("LEFT", freeText, "RIGHT", 12, 0)
 		keep:SetScript("OnClick", function()
 			ns.KeepRaidLoot()
@@ -775,34 +774,29 @@ function ns.CreateWindow(kind)
 		end)
 		keep:HookScript("OnEnter", function(self)
 			Tooltip_Anchor(self)
-			GameTooltip:SetText("Keep raid loot", 1, 1, 1)
-			GameTooltip:AddLine("Treat everything looted in this raid as your own items.", 0.7, 0.7, 0.7, true)
+			GameTooltip:SetText(L["KEEP_RAID_LOOT"], 1, 1, 1)
+			GameTooltip:AddLine(L["KEEP_RAID_LOOT_DESC"], 0.7, 0.7, 0.7, true)
 			GameTooltip:Show()
 		end)
 		keep:HookScript("OnLeave", function() GameTooltip:Hide() end)
 		keep:Hide()
 		f.keep = keep
-
-		local money = CreateFrame("Frame", "RatStashMoney", f, "SmallMoneyFrameTemplate")
-		local MONEY_SCALE = 1.3
-		money:SetScale(MONEY_SCALE)
-		-- offsets are in the money frame's own (scaled) units
-		money:SetPoint("BOTTOMRIGHT", (-PAD + 12) / MONEY_SCALE, (PAD + 1) / MONEY_SCALE)
+        -- ...
 	else
 		local offline = ns.Font(f:CreateFontString(nil, "OVERLAY"), 11)
 		offline:SetTextColor(ns.rgb(ns.C.textDim))
 		offline:SetPoint("BOTTOMRIGHT", -PAD - 2, PAD + 3)
-		offline:SetText("Offline copy · visit a bank to use it")
+		offline:SetText(L["OFFLINE_BANK_NOTE"])
 		offline:Hide()
 		f.offline = offline
 
-		local stack = ns.FlatButton(f, "Stack to bank", 100, 18, true)
+		local stack = ns.FlatButton(f, L["STACK_TO_BANK"], 110, 18, true)
 		stack:SetPoint("LEFT", freeText, "RIGHT", 12, 0)
 		stack:SetScript("OnClick", ns.StackToBank)
 		stack:HookScript("OnEnter", function(self)
 			Tooltip_Anchor(self)
-			GameTooltip:SetText("Stack to bank", 1, 1, 1)
-			GameTooltip:AddLine("Moves stackable items you already keep in the bank onto their bank stacks. Pinned items and raid loot stay in your bags.", 0.7, 0.7, 0.7, true)
+			GameTooltip:SetText(L["STACK_TO_BANK"], 1, 1, 1)
+			GameTooltip:AddLine(L["STACK_TO_BANK_DESC"], 0.7, 0.7, 0.7, true)
 			GameTooltip:Show()
 		end)
 		stack:HookScript("OnLeave", function() GameTooltip:Hide() end)
@@ -936,11 +930,11 @@ local function Stop()
 	mover:Hide()
 	waitFor = nil
 	if moved > 0 then
-		local what = moved .. (moved == 1 and " stack" or " stacks")
-		ns.Print(mode == "mats" and ("Sent " .. what .. " of materials to the bank.")
-			or ("Stacked " .. what .. " into the bank."))
+		local what = moved .. (moved == 1 and L["STACK_SINGLE"] or L["STACK_MULTI"])
+		ns.Print(mode == "mats" and string.format(L["SENT_MATS_REPORT"], what)
+			or string.format(L["STACKED_REPORT"], what))
 	elseif mode == "mats" then
-		ns.Print("No materials to send, or the bank is full.")
+		ns.Print(L["NO_MATS_OR_FULL"])
 	end
 	ns.Dirty()
 end
