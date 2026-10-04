@@ -313,12 +313,14 @@ function ns.ScanBags()
 	local list = ScanLive(ns.BAGS)
 	UpdateFresh(list)
 	ns.records.bags = list
+	ns.UpdateNew("bags")
 end
 
 -- live bank scan, also saved per character so the bank can be browsed anywhere
 function ns.ScanBank()
 	local list = ScanLive(ns.BANK)
 	ns.records.bank = list
+	ns.UpdateNew("bank")
 	local cache = { items = {}, bags = {}, numSlots = GetNumBankSlots() }
 	for _, r in ipairs(list) do
 		if r.link then cache.items[r.key] = { link = r.link, count = r.count } end
@@ -349,3 +351,72 @@ function ns.CachedBank()
 	end
 	return list
 end
+
+--------------------------------------------------------------------------------
+-- new items: the total count of each item in a container (bags or bank) is
+-- remembered between scans, and anything that grew is new until the N button
+-- on the window resets it
+--------------------------------------------------------------------------------
+
+local function CountIn(kind, id)
+	if kind == "bank" then
+		return (GetItemCount(id, true) or 0) - (GetItemCount(id) or 0)
+	end
+	return GetItemCount(id) or 0
+end
+
+local swapFrozen = false
+
+function ns.UpdateNew(kind)
+	if swapFrozen then return end
+	if kind == "bank" and not ns.atBank then return end
+	local st = ns.char.new[kind]
+	local counts = st.counts
+	local seen = {}
+	for _, r in ipairs(ns.records[kind]) do
+		if r.id then seen[r.id] = true end
+	end
+	if kind == "bags" then
+		for slot = 0, 23 do
+			local id = GetInventoryItemID("player", slot)
+			if id then seen[id] = true end
+		end
+		for slot = 68, 74 do
+			local id = GetInventoryItemID("player", slot)
+			if id then seen[id] = true end
+		end
+	end
+	for id in pairs(seen) do
+		if counts[id] == nil then counts[id] = 0 end
+	end
+	local marked = false
+	for id, old in pairs(counts) do
+		local n = CountIn(kind, id)
+		counts[id] = n
+		if st.init and old < n and not st.items[id] then
+			st.items[id] = true
+			marked = true
+		end
+	end
+	st.init = true
+	if marked then ns.Dirty(kind) end
+end
+
+function ns.HasNew(kind)
+	return next(ns.char.new[kind].items) ~= nil
+end
+
+function ns.ResetNew(kind)
+	local st = ns.char.new[kind]
+	wipe(st.counts)
+	wipe(st.items)
+	st.init = nil
+	ns.Dirty(kind)
+end
+
+ns.On("EQUIPMENT_SWAP_PENDING", function() swapFrozen = true end)
+ns.On("EQUIPMENT_SWAP_FINISHED", function()
+	swapFrozen = false
+	ns.UpdateNew("bags")
+	if ns.atBank then ns.UpdateNew("bank") end
+end)

@@ -16,6 +16,7 @@ ns.DEFAULTS = {
 	pinAt = "top",
 	showIlvl = true,
 	showBoE = true,
+	showNew = true,
 	vs = { others = true, stack = true, incomplete = false },
 	pins = { [6948] = true }, -- Hearthstone; unpinning stores false so it stays unpinned
 	pos = {},
@@ -24,6 +25,10 @@ ns.DEFAULTS = {
 ns.CHAR_DEFAULTS = {
 	bank = nil,
 	fresh = { stack = {}, slot = {} },
+	new = {
+		bags = { counts = {}, items = {} },
+		bank = { counts = {}, items = {} },
+	},
 }
 
 local function copyDefaults(src, dst)

@@ -156,6 +156,28 @@ local function NewItemButton(win, i)
 	glow:Hide()
 	b.glow = glow
 
+	local newGlow = CreateFrame("Frame", nil, b)
+	newGlow:EnableMouse(false)
+	newGlow:SetFrameLevel(b:GetFrameLevel() + 15)
+	newGlow:SetPoint("CENTER")
+	newGlow:SetWidth(SIZE); newGlow:SetHeight(SIZE)
+	newGlow:SetScale(1.5)
+	local burst = newGlow:CreateTexture(nil, "OVERLAY")
+	burst:SetTexture([[Interface\Cooldown\starburst]])
+	burst:SetBlendMode("ADD")
+	burst:SetVertexColor(0.3, 1, 0.3, 0.7)
+	burst:SetAllPoints(newGlow)
+	local spin = newGlow:CreateAnimationGroup()
+	spin:SetLooping("REPEAT")
+	local rot = spin:CreateAnimation("Rotation")
+	rot:SetOrder(1)
+	rot:SetDuration(10)
+	rot:SetDegrees(360)
+	rot:SetOrigin("CENTER", 0, 0)
+	spin:Play()
+	newGlow:Hide()
+	b.newGlow = newGlow
+
 	local ilvl = b:CreateFontString(nil, "OVERLAY")
 	ilvl:SetFont(STANDARD_TEXT_FONT, 12, "OUTLINE")
 	ilvl:SetShadowColor(0, 0, 0, 1)
@@ -246,12 +268,13 @@ function W:SetEntry(b, e, cached)
 		end
 		if db.showBoE and e.boe then b.boe:Show() else b.boe:Hide() end
 		if e.fresh then b.glow:Show() else b.glow:Hide() end
+		if e.new and db.showNew then b.newGlow:Show() else b.newGlow:Hide() end
 		if e.timer then b.timer:SetText(e.timer); b.timer:Show() else b.timer:Hide() end
 	else
 		SetItemButtonTexture(b, EMPTY_TEX)
 		SetItemButtonCount(b, e.freeCount or 0)
 		SetItemButtonDesaturated(b, false)
-		b.border:Hide(); b.glow:Hide(); b.ilvl:Hide(); b.boe:Hide(); b.timer:Hide()
+		b.border:Hide(); b.glow:Hide(); b.newGlow:Hide(); b.ilvl:Hide(); b.boe:Hide(); b.timer:Hide()
 	end
 	if b.questTex then b.questTex:Hide() end
 
@@ -444,6 +467,9 @@ function W:Layout()
 	content:SetHeight(math.max(y, SIZE))
 
 	self.freeText:SetText(free .. " free")
+	local hasNew = ns.HasNew(self.kind)
+	if hasNew then self.newBtn:Enable() else self.newBtn:Disable() end
+	self.newBtn:SetAlpha(hasNew and 1 or 0.35)
 	if self.kind == "bags" then
 		if ns.HasRaidLoot() then self.keep:Show() else self.keep:Hide() end
 	else
@@ -716,6 +742,22 @@ function ns.CreateWindow(kind)
 		anchor = mats
 	end
 
+	local newBtn = ns.FlatButton(f, "N", 20, 20)
+	newBtn:SetPoint("RIGHT", anchor, "LEFT", -4, 0)
+	newBtn:SetScript("OnClick", function()
+		PlaySound("igMainMenuOptionCheckBoxOn")
+		ns.ResetNew(kind)
+	end)
+	newBtn:HookScript("OnEnter", function()
+		Tooltip_Anchor(newBtn)
+		GameTooltip:SetText("Reset new items", 1, 1, 1)
+		GameTooltip:AddLine("Click to reset item status.", 0.7, 0.7, 0.7, true)
+		GameTooltip:Show()
+	end)
+	newBtn:HookScript("OnLeave", function() GameTooltip:Hide() end)
+	f.newBtn = newBtn
+	anchor = newBtn
+
 	-- search: never focused automatically, loses focus on Enter, Escape, combat, world clicks, hide
 	local search = ns.FlatInput(f, name .. "Search", 170, 20)
 	search:SetPoint("RIGHT", anchor, "LEFT", -8, 0)
@@ -742,7 +784,7 @@ function ns.CreateWindow(kind)
 	drag:SetPoint("RIGHT", search, "LEFT", -10, 0)
 	drag:SetHeight(TOP_H)
 	local top = drag:GetFrameLevel() + 2
-	for _, b in ipairs({ opts, bagsBtn, anchor, close, f.bankBtn }) do b:SetFrameLevel(top) end
+	for _, b in ipairs({ opts, bagsBtn, newBtn, close, f.bankBtn, f.matsBtn }) do b:SetFrameLevel(top) end
 	search:SetFrameLevel(top)
 
 	f:CreateBagBar()
