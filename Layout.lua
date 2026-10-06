@@ -97,7 +97,9 @@ local function StackKey(e, trading)
 	-- at a vendor, bank, mailbox or trade identical unstackable items get one slot each so a single
 	-- one can be sold or given; stacks stay merged and go one stack at a time
 	local level = trading and 2 or 0
-	if e.split or e.set then return nil end
+	-- gear is never merged: each copy is its own item to equip, trade or sell, and
+	-- one slot for four rings hides how many you have
+	if e.split or e.set or e.isGear then return nil end
 	local tag = e.id .. (e.fresh and ":f" or "")
 	if e.maxStack > 1 then
 		if not c.stack or level >= 4 then return nil end
