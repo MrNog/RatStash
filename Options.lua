@@ -193,6 +193,8 @@ function ns.CreateOptions()
 		function() return db.showIlvl end, function(v) db.showIlvl = v end)
 	y = Check(panel, y, "Show BoE tag", "Bind-on-equip gear gets a gold BoE tag.",
 		function() return db.showBoE end, function(v) db.showBoE = v end)
+	y = Check(panel, y, "Highlight new items", "Newly acquired items get a green glow until the N button resets them.",
+		function() return db.showNew end, function(v) db.showNew = v end)
 	y = Check(panel, y, "Raid loot group as master looter", "While you are master looter, raid loot gets its own group.",
 		function() return db.mlGroup end, function(v) db.mlGroup = v end)
 

@@ -204,6 +204,7 @@ function ns.BuildSections(kind)
 		for _, r in ipairs(records) do
 			local e = Copy(r)
 			e.pinned = e.id and db.pins[e.id] and true or nil
+			if e.id and ns.char.new[kind].items[e.id] then e.new = true end
 			grid[#grid + 1] = e
 		end
 		local free = 0
@@ -217,6 +218,7 @@ function ns.BuildSections(kind)
 			local e = Copy(r)
 			local s = setMap[r.key]
 			if s then e.set, e.setOrder = s.set, s.order end
+			if e.id and ns.char.new[kind].items[e.id] then e.new = true end
 			entries[#entries + 1] = e
 		else
 			empties[#empties + 1] = r
