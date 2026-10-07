@@ -1,4 +1,5 @@
 local ADDON, ns = ...
+local L = ns.L
 
 -- records per window: one per real bag slot, empty slots included
 ns.records = { bags = {}, bank = {} }
@@ -31,8 +32,8 @@ local TRADE_PATTERN = BIND_TRADE_TIME_REMAINING and
 	BIND_TRADE_TIME_REMAINING:gsub("([%(%)%.%+%-%*%?%[%]%^%$])", "%%%1"):gsub("%%s", "(.+)")
 
 local function ShortTime(s)
-	local h = s:match("(%d+) [Hh]our")
-	local m = s:match("(%d+) [Mm]in")
+	local h = s:match("(%d+) [Hh]our") or s:match("(%d+) %s*[Чч]")
+	local m = s:match("(%d+) [Mm]in") or s:match("(%d+) %s*[Мм]")
 	if h then return h .. "h" .. (m or "") end
 	if m then return m .. "m" end
 	return "trade"
