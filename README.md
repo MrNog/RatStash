@@ -52,7 +52,7 @@ RatStash keeps what's good about it and makes the rest predictable:
 | **Gear sets** | Pieces of each Equipment Manager set are grouped, in slot order. |
 | **Raid loot** | Loot from a raid glows green and shows its trade timer. As master looter it gets its own group; with [Okanvil](https://github.com/MrNog/Okanvil), reserved loot (hard reserves, reserved BoE / Orb / Pattern / Frag) goes to **[HR] Reserved**. |
 | **Upgrade %** | Item tooltips show, per gear set you carry, how much better or worse the item is, scored with that set's spec (Holy, Ret...). |
-| **Loot radar** | Spyglass button on the bags: every boss of a raid with the drops that are upgrades for your current spec, ranked by your Bistooltip list and aware of your tier set. A toast and a sound when one drops. Boss loot comes from Okanvil. |
+| **Loot radar** | Spyglass button on the bags: every boss of a raid with the drops that are upgrades for your current spec, ranked by your Bistooltip list and aware of your tier set. A toast and a sound when one drops. Boss loot and BiS lists are built in. |
 | **Item badges** | Item level on gear in its quality color, and a **BoE** tag. |
 | **Virtual stacks** | Identical items and full stacks shown as one slot. At a vendor, bank, mailbox or trade, identical gear splits back into one slot each so you can sell just one. |
 | **Stack to bank** | One click at the bank moves stackable items you already keep there onto their bank stacks. |
