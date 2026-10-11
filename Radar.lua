@@ -6,7 +6,7 @@ local C, rgb = ns.C, ns.rgb
 -- you are in with the drops that are an upgrade for you (ns.RadarJudge: your Bistooltip list, else
 -- the upgrade %). An upgrade showing up in
 -- a loot window, a roll or a raid warning pops a toast with a sound.
--- Boss loot comes from Okanvil's OkanvilRaidLoot table; without Okanvil the radar stays off.
+-- Boss loot comes from RaidLoot.lua, the BiS lists from BisData.lua: RatStash needs no other addon.
 --------------------------------------------------------------------------------
 
 local ZONES = {
@@ -26,7 +26,7 @@ local MODE_LABEL = { ["10n"] = "10", ["25n"] = "25", ["10h"] = "10 HC", ["25h"] 
 
 local ROW_H, ITEM_H, WIDTH = 22, 26, 300
 
-local function Loot() return OkanvilRaidLoot end
+local function Loot() return ns.RAIDLOOT end
 
 -- the difficulties a raid's loot table has, in MODES order (VoA has no heroic, ToC/ICC/RS do)
 local modesCache = {}
@@ -219,7 +219,7 @@ local function Refresh(p)
 	for _, r in ipairs(p.bossRows) do r:Hide() end
 	for _, r in ipairs(p.itemRows) do r:Hide() end
 	if not bosses then
-		p.status:SetText(loot and "No loot table for this raid." or "Needs Okanvil for the boss loot tables.")
+		p.status:SetText("No loot table for this raid.")
 		p:SetHeight(64)
 		return
 	end

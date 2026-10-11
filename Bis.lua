@@ -1,11 +1,11 @@
 local _, ns = ...
 
 --------------------------------------------------------------------------------
--- BiS lists from Bistooltip (optional): the hand-made top 6 per slot for each spec and phase.
+-- BiS lists (BisData.lua, copied from Bistooltip): the hand-made top 6 per slot for each spec and phase.
 -- The radar asks ns.RadarJudge whether a drop is for you: it must be on your spec's list for
 -- the raid's phase, and rank above what you wear in that slot. Lists hold one id per item
 -- (mostly the 25 heroic one), so items are matched by name: the 10, 25 and heroic copies
--- share it. Horde ToC ids go through Bistooltip's own horde -> alliance table.
+-- share it. Horde ToC ids go through the list's own horde -> alliance table.
 --------------------------------------------------------------------------------
 
 -- RatStash spec key -> Bistooltip spec name (class name comes from CLASS)
@@ -49,7 +49,7 @@ local lootName, lootVersion
 local function NameOf(id)
 	if not lootName then
 		lootName, lootVersion = {}, {}
-		for _, bosses in pairs(OkanvilRaidLoot or {}) do
+		for _, bosses in pairs(ns.RAIDLOOT or {}) do
 			for _, boss in ipairs(bosses) do
 				for _, it in ipairs(boss.items) do
 					lootName[it.id] = it.name
@@ -85,7 +85,7 @@ local function FixVersions(r)
 end
 
 local function AliId(id)
-	return (Bistooltip_horde_to_ali and Bistooltip_horde_to_ali[id]) or id
+	return ns.BIS_HORDE_TO_ALI[id] or id
 end
 
 -- rows of the list for this spec + raid:
@@ -94,7 +94,7 @@ end
 -- id's rank and the name's best rank are kept apart.
 local cache = {}
 local function Rows(spec, raid)
-	local lists = Bistooltip_wowtbc_bislists
+	local lists = ns.BIS
 	local cls = lists and lists[CLASS[spec.class]]
 	local bySpec = cls and SPEC[spec.key] and cls[SPEC[spec.key]]
 	if not bySpec then return end
@@ -107,7 +107,7 @@ local function Rows(spec, raid)
 	if cache[key] then return cache[key], phase end
 	local rows = {}
 	for _, row in ipairs(bySpec[phase]) do
-		local r = { name = row.slot_name, rank = {}, byName = {}, top = row[1] }
+		local r = { name = row.slot, rank = {}, byName = {}, top = row[1] }
 		for n = 1, 6 do
 			local id = row[n]
 			if id and id > 0 then
