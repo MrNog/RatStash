@@ -299,7 +299,7 @@ end
 local function CreatePanel()
 	local p = CreateFrame("Frame", "RatStashRadar", UIParent)
 	p:SetWidth(WIDTH); p:SetHeight(120)
-	p:SetFrameStrata("HIGH")
+	p:SetFrameStrata("DIALOG")   -- above the bags (HIGH), so it can never open underneath them
 	p:SetClampedToScreen(true)
 	tinsert(UISpecialFrames, "RatStashRadar")
 	ns.Skin(p, C.panelD, 0.95)
@@ -415,7 +415,14 @@ function ns.RadarCommand(args)
 	p:ClearAllPoints()
 	local bags = ns.windows.bags
 	if bags and bags:IsShown() then
-		p:SetPoint("TOPRIGHT", bags, "TOPLEFT", -6, 0)
+		-- beside the bags on the side with room; with too little on the left the screen
+		-- clamp pushed it back on-screen under the bag window
+		local room = (bags:GetLeft() or 0) * bags:GetEffectiveScale() / p:GetEffectiveScale()
+		if room >= p:GetWidth() + 8 then
+			p:SetPoint("TOPRIGHT", bags, "TOPLEFT", -6, 0)
+		else
+			p:SetPoint("TOPLEFT", bags, "TOPRIGHT", 6, 0)
+		end
 	else
 		p:SetPoint("CENTER", UIParent, "CENTER", 300, 0)
 	end
