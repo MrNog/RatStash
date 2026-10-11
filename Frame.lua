@@ -713,11 +713,17 @@ function ns.CreateWindow(kind)
 		mats:SetPoint("RIGHT", bankBtn, "LEFT", -4, 0)
 		f.bankBtn = bankBtn
 		f.matsBtn = mats
-		anchor = mats
+		local radar = IconButton(f, [[Interface\Icons\INV_Misc_Spyglass_02]], "Loot radar", function() ns.RadarCommand("") end)
+		radar:HookScript("OnEnter", function()
+			GameTooltip:AddLine("Your upgrades per boss for the raid you are in.", 0.7, 0.7, 0.7, true)
+			GameTooltip:Show()
+		end)
+		radar:SetPoint("RIGHT", mats, "LEFT", -4, 0)
+		anchor = radar
 	end
 
 	-- search: never focused automatically, loses focus on Enter, Escape, combat, world clicks, hide
-	local search = ns.FlatInput(f, name .. "Search", 170, 20)
+	local search = ns.FlatInput(f, name .. "Search", kind == "bags" and 150 or 170, 20)
 	search:SetPoint("RIGHT", anchor, "LEFT", -8, 0)
 	search:SetScript("OnEscapePressed", search.ClearFocus)
 	search:SetScript("OnEnterPressed", search.ClearFocus)

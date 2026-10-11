@@ -16,6 +16,11 @@ ns.DEFAULTS = {
 	pinAt = "top",
 	showIlvl = true,
 	showBoE = true,
+	showUpgrade = true,
+	radar = true,      -- upgrade toast when loot drops
+	radarSound = true,
+	radarSoundName = "Rat", -- upgrade toast sound: "Rat" (Media\rat.wav) or a PlaySound name
+	radarMin = 1,      -- smallest upgrade % the radar lists
 	vs = { others = true, stack = true, incomplete = false },
 	pins = { [6948] = true }, -- Hearthstone; unpinning stores false so it stays unpinned
 	pos = {},
@@ -24,6 +29,7 @@ ns.DEFAULTS = {
 ns.CHAR_DEFAULTS = {
 	bank = nil,
 	fresh = { stack = {}, slot = {} },
+	setSpec = {}, -- gear set name -> spec key for the upgrade %, when not picked automatically
 }
 
 local function copyDefaults(src, dst)
@@ -220,6 +226,12 @@ SlashCmdList.RATSTASH = function(msg)
 		ns.OpenOptions()
 	elseif msg == "keep" then
 		ns.KeepRaidLoot()
+	elseif msg == "toast" then
+		ns.RadarTest()
+	elseif msg:match("^radar") then
+		ns.RadarCommand(msg:sub(6))
+	elseif msg:match("^spec") then
+		ns.SetSpecCommand(msg:sub(5))
 	else
 		ns.ToggleBags()
 	end

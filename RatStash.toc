@@ -5,7 +5,7 @@
 ## Version: 0.1.0
 ## SavedVariables: RatStashDB
 ## SavedVariablesPerCharacter: RatStashCharDB
-## OptionalDeps: Okanvil
+## OptionalDeps: Okanvil, Bistooltip, ClassLoot
 
 Core.lua
 Scan.lua
@@ -13,3 +13,7 @@ Layout.lua
 Style.lua
 Frame.lua
 Options.lua
+Weights.lua
+Upgrade.lua
+Bis.lua
+Radar.lua
