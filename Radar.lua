@@ -26,7 +26,8 @@ local MODE_LABEL = { ["10n"] = "10", ["25n"] = "25", ["10h"] = "10 HC", ["25h"] 
 
 local ROW_H, ITEM_H, WIDTH = 22, 26, 300
 
-local function Loot() return ns.RAIDLOOT end
+-- Okanvil's table stands in until RaidLoot.lua is loaded (a new file needs a full restart)
+local function Loot() return ns.RAIDLOOT or OkanvilRaidLoot end
 
 -- the difficulties a raid's loot table has, in MODES order (VoA has no heroic, ToC/ICC/RS do)
 local modesCache = {}

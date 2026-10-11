@@ -49,7 +49,7 @@ local lootName, lootVersion
 local function NameOf(id)
 	if not lootName then
 		lootName, lootVersion = {}, {}
-		for _, bosses in pairs(ns.RAIDLOOT or {}) do
+		for _, bosses in pairs(ns.RAIDLOOT or OkanvilRaidLoot or {}) do
 			for _, boss in ipairs(bosses) do
 				for _, it in ipairs(boss.items) do
 					lootName[it.id] = it.name
@@ -85,7 +85,7 @@ local function FixVersions(r)
 end
 
 local function AliId(id)
-	return ns.BIS_HORDE_TO_ALI[id] or id
+	return (ns.BIS_HORDE_TO_ALI and ns.BIS_HORDE_TO_ALI[id]) or id
 end
 
 -- rows of the list for this spec + raid:
