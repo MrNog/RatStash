@@ -280,6 +280,8 @@ function W:Update()
 	if not self:IsShown() then return end
 	if self.laidOut and MouseIsOver(self) and not self.cached then
 		self:RefreshInPlace()
+		-- the bag icons move nothing, so a swapped bag shows at once
+		self:UpdateBagBar()
 		self.pending = true
 		return
 	end
@@ -509,10 +511,13 @@ local function IsPurchasable(bag)
 	return (bag - NUM_BAG_SLOTS) > owned
 end
 
-local function Bag_OnClick(self)
+local function Bag_OnClick(self, button)
 	local bag, win = self:GetID(), self.win
 	if win.cached then return end
-	if IsPurchasable(bag) then
+	if button == "RightButton" and bag ~= BACKPACK_CONTAINER and bag ~= BANK_CONTAINER
+		and not IsPurchasable(bag) and not CursorHasItem() then
+		ns.EmptyBag(bag, win.kind == "bags" and ns.BAGS or ns.BANK)
+	elseif IsPurchasable(bag) then
 		StaticPopup_Show("RATSTASH_BUY_BANK_SLOT")
 	elseif CursorHasItem() then
 		if bag == BACKPACK_CONTAINER then
@@ -547,6 +552,7 @@ local function Bag_OnEnter(self)
 	end
 	if bag ~= BACKPACK_CONTAINER and bag ~= BANK_CONTAINER and not self.win.cached then
 		GameTooltip:AddLine("Drag a bag here to swap it.", 0.7, 0.7, 0.7)
+		GameTooltip:AddLine("Right-click: move everything out of this bag.", 0.7, 0.7, 0.7)
 	end
 	GameTooltip:Show()
 	self.win.hoverBag = bag
@@ -823,6 +829,8 @@ function ns.CreateWindow(kind)
 		self.search:ClearFocus()
 		self.hoverBag = nil
 		if self.kind == "bank" and ns.atBank then CloseBankFrame() end
+		-- the loot radar sits beside the bags and goes away with them
+		if self.kind == "bags" and ns.radar then ns.radar:Hide() end
 	end)
 	-- a layout skipped while the mouse was on the window happens as soon as it leaves
 	f:SetScript("OnUpdate", function(self)
@@ -905,6 +913,35 @@ local function Wanted(mode, bag, slot, id, link, inBank)
 end
 
 local mode = "stack"
+local emptyBag, emptySet       -- mode "empty": the bag being cleared, and the bags it may go into
+
+-- A free slot in another bag of the same window that can hold this item. A
+-- profession bag only takes its own kind (GetItemFamily), a normal bag takes anything.
+local function FreeSlotFor(link)
+	local family = GetItemFamily(link) or 0
+	for _, bag in ipairs(emptySet) do
+		if bag ~= emptyBag then
+			local _, btype = GetContainerNumFreeSlots(bag)
+			btype = btype or 0
+			if btype == 0 or bit.band(family, btype) ~= 0 then
+				for slot = 1, GetContainerNumSlots(bag) or 0 do
+					if not GetContainerItemInfo(bag, slot) then return bag, slot end
+				end
+			end
+		end
+	end
+end
+
+local function NextEmptyMove()
+	for slot = 1, GetContainerNumSlots(emptyBag) or 0 do
+		local link, count, locked = Slot(emptyBag, slot)
+		if link and not locked then
+			local tb, ts = FreeSlotFor(link)
+			if not tb then return nil, "full" end
+			return emptyBag, slot, tb, ts, count, count
+		end
+	end
+end
 
 local function NextMove()
 	local inBank, partial, free = {}, {}, nil
@@ -937,10 +974,21 @@ local function NextMove()
 	end
 end
 
-local function Stop()
+local function Stop(why)
 	mover:Hide()
 	waitFor = nil
-	if moved > 0 then
+	if mode == "empty" then
+		if why == "full" then
+			ns.Print("Not enough room in the other bags to empty this one.")
+		elseif moved > 0 then
+			ns.Print("Bag emptied (" .. moved .. (moved == 1 and " item" or " items") .. " moved). Drag the new bag onto its slot.")
+		end
+		-- the mouse is still on the bag bar, which would hold the old layout (holes where
+		-- the items were) until it leaves: every item moved, so lay out now
+		ns.ScanBags()
+		if ns.atBank then ns.ScanBank() end
+		ns.RelayoutAll()
+	elseif moved > 0 then
 		local what = moved .. (moved == 1 and " stack" or " stacks")
 		ns.Print(mode == "mats" and ("Sent " .. what .. " of materials to the bank.")
 			or ("Stacked " .. what .. " into the bank."))
@@ -954,7 +1002,9 @@ mover:SetScript("OnUpdate", function(_, elapsed)
 	idle = idle + elapsed
 	if idle < 0.15 then return end
 	idle = 0
-	if not ns.atBank or moved >= 300 then return Stop() end
+	-- the bank can only be touched while it is open; the bags always can
+	local needBank = mode ~= "empty" or emptySet == ns.BANK
+	if (needBank and not ns.atBank) or moved >= 300 then return Stop() end
 	if CursorHasItem() then return end
 	if waitFor then
 		local _, _, l1 = Slot(waitFor[1], waitFor[2])
@@ -962,8 +1012,10 @@ mover:SetScript("OnUpdate", function(_, elapsed)
 		if l1 or l2 then return end
 		waitFor = nil
 	end
-	local sb, ss, tb, ts, amount, count = NextMove()
-	if not sb then return Stop() end
+	local sb, ss, tb, ts, amount, count
+	if mode == "empty" then sb, ss, tb, ts, amount, count = NextEmptyMove()
+	else sb, ss, tb, ts, amount, count = NextMove() end
+	if not sb then return Stop(ss) end
 	if amount < count then
 		SplitContainerItem(sb, ss, amount)
 	else
@@ -985,6 +1037,16 @@ local function StartMover(m)
 end
 
 function ns.StackToBank() StartMover("stack") end
+
+-- Clear one bag into the others of the same window, so it can be swapped.
+function ns.EmptyBag(bag, set)
+	if mover:IsShown() then return end
+	if set == ns.BANK and not ns.atBank then return end
+	if CursorHasItem() then ClearCursor() end
+	mode, emptyBag, emptySet = "empty", bag, set
+	moved, waitFor, idle = 0, nil, 0
+	mover:Show()
+end
 
 function ns.SendMatsToBank()
 	if not ns.atBank then
