@@ -120,11 +120,9 @@ end
 -- per boss: the upgrades in this difficulty, best first
 --------------------------------------------------------------------------------
 
--- the BiS judge lives in Bis.lua; without it (a new file needs a full restart) fall back to the %
+-- the judge lives in Bis.lua: your BiS list, or item level when your spec has none
 local function Judge(link, raid)
-	if ns.RadarJudge then return ns.RadarJudge(link, raid) end
-	local pct, owned = ns.BestUpgrade(link)
-	return pct ~= nil and pct >= (ns.db.radarMin or 1), pct, owned
+	return ns.RadarJudge(link, raid)
 end
 
 local function Upgrades(boss, raid, mode, all)
@@ -278,10 +276,10 @@ local function Refresh(p)
 					if u.rank then
 						it.pct:SetText(u.vs and ("vs " .. u.vs) or "")
 					else
-						it.pct:SetText(u.pct and string.format("%+.1f%%", u.pct) or "")
+						it.pct:SetText(u.pct and ("+" .. u.pct .. " ilvl") or "")
 					end
 					if u.up then
-						it.pct:SetTextColor(PctColor(math.max(u.pct or 1, 1))); it:SetAlpha(1)
+						it.pct:SetTextColor(0.486, 0.988, 0.541); it:SetAlpha(1)
 					else
 						it.pct:SetTextColor(rgb(C.danger)); it:SetAlpha(0.7)
 					end
@@ -518,7 +516,7 @@ local function Check(link, test)
 	if rank then
 		if vs then bits[#bits + 1] = "|cff8a8d93vs " .. vs .. "|r" end
 	elseif pct then
-		bits[#bits + 1] = string.format("|cff%02x%02x%02x%+.1f%%|r", r * 255, g * 255, b * 255, pct)
+		bits[#bits + 1] = string.format("|cff%02x%02x%02x+%d ilvl|r", r * 255, g * 255, b * 255, pct)
 	end
 	if boss then bits[#bits + 1] = boss end
 	toast.meta:SetText(table.concat(bits, "  "))

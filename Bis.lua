@@ -84,8 +84,16 @@ local function FixVersions(r)
 	end
 end
 
+-- ToC drops differ by faction (a Horde Juggernaut's Vitality is the Alliance
+-- Satrina's Impeding Scarab) and the lists name the Alliance id. The map's keys
+-- are Alliance ids, its values Horde ones, so a Horde id is looked up in reverse.
+local hordeToAli
 local function AliId(id)
-	return (ns.BIS_HORDE_TO_ALI and ns.BIS_HORDE_TO_ALI[id]) or id
+	if not hordeToAli then
+		hordeToAli = {}
+		for ali, horde in pairs(ns.BIS_HORDE_TO_ALI or {}) do hordeToAli[horde] = ali end
+	end
+	return hordeToAli[id] or id
 end
 
 -- rows of the list for this spec + raid:
@@ -213,19 +221,21 @@ local function BreaksSet(id, slot, row, rows)
 	return worn.n - 1 < wanted
 end
 
--- how a drop ranks for you. Returns show, pct, owned, rank:
+-- how a drop ranks for you. Returns show, gain, owned, rank:
 --   rank = its place on your list (1 = BiS); show = it ranks above the piece you wear there
 --   (on rings and trinkets: the weaker of the two), or is a higher item level copy of it.
 --   A 5th value says what it was measured against: "#6" (your piece's rank), "264" (your
 --   piece's item level, when it isn't on the list), "empty", or "tier" (kept for a set bonus).
--- Without a list for your spec this falls back to the upgrade % alone.
+-- Without a list for your spec: gear meant for your spec at a higher item
+-- level than yours (gain = item levels gained).
 function ns.RadarJudge(link, raid)
 	local spec = ns.CurrentSpec()
-	local pct, owned = ns.BestUpgrade(link)
 	local rows = spec and Rows(spec, raid)
 	if not rows then
-		return pct ~= nil and pct >= (ns.db.radarMin or 1), pct, owned
+		local gain, owned = ns.IlvlUpgrade(link)
+		return gain ~= nil, gain, owned
 	end
+	local owned
 	local id = tonumber(link:match("item:(%d+)"))
 	local name = GetItemInfo(link)
 	owned = GetItemCount(id, true) > 0
@@ -264,5 +274,5 @@ function ns.RadarJudge(link, raid)
 	end
 	-- not on your list: no % either, so "All" shows the list and nothing the stat score guessed
 	if not best then return false, nil, owned end
-	return show == true, pct, owned, best, vs
+	return show == true, nil, owned, best, vs
 end

@@ -13,8 +13,8 @@ Layout.lua
 Style.lua
 Frame.lua
 Options.lua
-Weights.lua
-Upgrade.lua
+Specs.lua
+Fit.lua
 BisData.lua
 RaidLoot.lua
 Bis.lua

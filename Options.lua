@@ -195,8 +195,6 @@ function ns.CreateOptions()
 		function() return db.showBoE end, function(v) db.showBoE = v end)
 	y = Check(panel, y, "Raid loot group as master looter", "While you are master looter, raid loot gets its own group.",
 		function() return db.mlGroup end, function(v) db.mlGroup = v end)
-	y = Check(panel, y, "Upgrade % on item tooltips", "Per gear set you carry, scored with its spec. /rst spec picks the spec.",
-		function() return db.showUpgrade end, function(v) db.showUpgrade = v end)
 	y = Check(panel, y, "Upgrade toast when loot drops", "A loot window, roll or raid warning with an upgrade for you pops a toast. Radar button on the bags lists them per boss.",
 		function() return db.radar end, function(v) db.radar = v end)
 	y = Check(panel, y, "Sound when an upgrade drops", "The upgrade toast plays a ready-check chime.",

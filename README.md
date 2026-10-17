@@ -51,7 +51,6 @@ RatStash keeps what's good about it and makes the rest predictable:
 | **Pinned items** | Alt-click any item to pin it, at the top or the bottom. The Hearthstone always comes first. |
 | **Gear sets** | Pieces of each Equipment Manager set are grouped, in slot order. |
 | **Raid loot** | Loot from a raid glows green and shows its trade timer. As master looter it gets its own group; with [Okanvil](https://github.com/MrNog/Okanvil), reserved loot (hard reserves, reserved BoE / Orb / Pattern / Frag) goes to **[HR] Reserved**. |
-| **Upgrade %** | Item tooltips show, per gear set you carry, how much better or worse the item is, scored with that set's spec (Holy, Ret...). |
 | **Loot radar** | Spyglass button on the bags: every boss of a raid with the drops that are upgrades for your current spec, ranked by your Bistooltip list and aware of your tier set. A toast and a sound when one drops. Boss loot and BiS lists are built in. |
 | **Item badges** | Item level on gear in its quality color, and a **BoE** tag. |
 | **Virtual stacks** | Identical items and full stacks shown as one slot. At a vendor, bank, mailbox or trade, identical gear splits back into one slot each so you can sell just one. |
@@ -87,7 +86,6 @@ leather pouch every empty slot shows. Turn the banner off or down in the setting
 | `/rst bank` | open your bank, even away from it |
 | `/rst options` | settings |
 | `/rst keep` | treat all raid loot as your own |
-| `/rst spec` | see or change which spec scores each gear set (`/rst spec val holy`) |
 | `/rst radar` | open the loot radar (`/rst radar toc 10`, `/rst radar icc 25h`) |
 | `/rst toast` | show the upgrade toast and sound with your best upgrade, to test it |
 | **Alt-click** an item | pin or unpin it |
