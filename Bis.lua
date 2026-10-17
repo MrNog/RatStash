@@ -151,6 +151,9 @@ local function Beats(row, link, id, wornLink, wid)
 	local _, wExact, wName = RankIn(row, wid, GetItemInfo(wornLink))
 	local dl, wl = Ilvl(link), Ilvl(wornLink)
 	if dl == wl then return dName < wName end
+	-- the list's place is another (higher) copy's: this lower copy does not
+	-- beat a piece of higher item level, whatever that copy's place
+	if not dExact and dl < wl then return false end
 	local d, w = dExact or (dName + 0.5), wExact or (wName + 0.5)
 	if d ~= w then return d < w end
 	return dl > wl
