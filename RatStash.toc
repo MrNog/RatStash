@@ -8,6 +8,7 @@
 ## OptionalDeps: Okanvil, ClassLoot
 
 Core.lua
+Conflict.lua
 Scan.lua
 Layout.lua
 Style.lua
