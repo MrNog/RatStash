@@ -309,9 +309,36 @@ end
 -- scans
 --------------------------------------------------------------------------------
 
+-- Items that arrived in the bags this session: [id] = when. Looted, bought, mailed,
+-- traded -- anything whose count went up, except what came out of your own bank.
+-- Not saved: a /reload or relog starts the list again.
+local NEW_FOR = 15 * 60
+local newSince, baseline = {}, nil
+local loadedAt = GetTime()
+local function TrackNew(list)
+	local counts = {}
+	for _, r in ipairs(list) do
+		if r.id then counts[r.id] = (counts[r.id] or 0) + (r.count or 1) end
+	end
+	-- the first scans after login only learn what is already there (bags fill in late)
+	if baseline and not ns.atBank and GetTime() - loadedAt > 10 then
+		for id, n in pairs(counts) do
+			if n > (baseline[id] or 0) then newSince[id] = GetTime() end
+		end
+	end
+	baseline = counts
+	local now = GetTime()
+	for id, t in pairs(newSince) do
+		if now - t > NEW_FOR or not counts[id] then newSince[id] = nil end
+	end
+end
+function ns.IsNew(id) return id ~= nil and newSince[id] ~= nil end
+function ns.ClearNew() wipe(newSince); ns.Dirty("bags") end
+
 function ns.ScanBags()
 	local list = ScanLive(ns.BAGS)
 	UpdateFresh(list)
+	TrackNew(list)
 	ns.records.bags = list
 end
 

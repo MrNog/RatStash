@@ -16,6 +16,8 @@ ns.DEFAULTS = {
 	pinAt = "top",
 	showIlvl = true,
 	showBoE = true,
+	newGroup = false,  -- items that just arrived get their own group for a while (opt-in)
+	sellJunk = true,   -- greys are sold when a vendor opens
 	vs = { others = true, stack = true, incomplete = false },
 	pins = { [6948] = true }, -- Hearthstone; unpinning stores false so it stays unpinned
 	pos = {},
@@ -92,6 +94,7 @@ ns.windows = {}
 
 ns.On("ADDON_LOADED", function(name)
 	if name ~= ADDON then return end
+	ns.firstRun = RatStashDB == nil
 	RatStashDB = RatStashDB or {}
 	RatStashCharDB = RatStashCharDB or {}
 	copyDefaults(ns.DEFAULTS, RatStashDB)
@@ -106,6 +109,18 @@ ns.On("PLAYER_LOGIN", function()
 	ns.HookBlizzardBags()
 	ns.CreateOptions()
 	ns.Dirty()
+	-- a first install opens the settings once, so the layout is chosen, not found
+	if ns.firstRun then
+		local t, f = 0, CreateFrame("Frame")
+		f:SetScript("OnUpdate", function(self, e)
+			t = t + e
+			if t < 5 then return end
+			self:SetScript("OnUpdate", nil)
+			if InCombatLockdown() or StaticPopup_Visible("RATSTASH_BAG_CONFLICT") then return end
+			ns.Print("welcome -- pick your layout here. /rst options opens it again.")
+			ns.OpenOptions()
+		end)
+	end
 end)
 
 --------------------------------------------------------------------------------
@@ -182,6 +197,47 @@ ns.On("EQUIPMENT_SETS_CHANGED", function() ns.Dirty() end)
 ns.On("PLAYER_EQUIPMENT_CHANGED", function() ns.WipeTooltipCache(); ns.Dirty() end)
 ns.On("PARTY_LOOT_METHOD_CHANGED", function() ns.Dirty("bags") end)
 ns.On("RAID_ROSTER_UPDATE", function() ns.Dirty("bags") end)
+
+-- A vendor opens: every grey with a sell price goes, one a tenth of a second
+-- (a burst of sells can be dropped by the server), and one line says what it made.
+do
+	local queue, total, sold, wait = {}, 0, 0, 0
+	local seller = CreateFrame("Frame")
+	seller:Hide()
+	seller:SetScript("OnUpdate", function(self, e)
+		wait = wait - e
+		if wait > 0 then return end
+		wait = 0.1
+		local job = table.remove(queue, 1)
+		if not job or not MerchantFrame:IsShown() then
+			self:Hide()
+			if sold > 0 then
+				ns.Print(("sold %d grey item%s for %s."):format(sold, sold == 1 and "" or "s",
+					GetCoinTextureString and GetCoinTextureString(total) or (total .. "c")))
+			end
+			return
+		end
+		local _, count, locked, quality, _, _, link = GetContainerItemInfo(job.bag, job.slot)
+		if link and quality == 0 and not locked then
+			UseContainerItem(job.bag, job.slot)
+			sold, total = sold + 1, total + job.price * (count or 1)
+		end
+	end)
+	ns.On("MERCHANT_SHOW", function()
+		if not ns.db.sellJunk then return end
+		wipe(queue); total, sold, wait = 0, 0, 0
+		for _, bag in ipairs(ns.BAGS) do
+			for slot = 1, (GetContainerNumSlots(bag) or 0) do
+				local _, _, locked, quality, _, _, link = GetContainerItemInfo(bag, slot)
+				local price = link and select(11, GetItemInfo(link)) or 0
+				if link and quality == 0 and not locked and price > 0 then
+					queue[#queue + 1] = { bag = bag, slot = slot, price = price }
+				end
+			end
+		end
+		if #queue > 0 then seller:Show() end
+	end)
+end
 
 -- virtual stacks split apart while one of these windows is open (the bank counts too, see ns.IsTrading)
 local tradeOpen = {}

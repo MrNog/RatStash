@@ -2,9 +2,9 @@ local ADDON, ns = ...
 
 -- fixed order everything is drawn in; nothing here moves real items
 -- gear comes last: it changes the most, and at the bottom it has room to grow
-local ORDER = { pin = 1, fresh = 2, set = 3, con = 4, ench = 5, mat = 6, quest = 7, other = 8, junk = 9, gear = 10 }
+local ORDER = { pin = 1, fresh = 2, new = 2.5, set = 3, con = 4, ench = 5, mat = 6, quest = 7, other = 8, junk = 9, gear = 10 }
 local CATS = {
-	{ "fresh", "Raid loot" }, { "con", "Consumables" }, { "ench", "Enchanting" }, { "mat", "Trade goods" },
+	{ "fresh", "Raid loot" }, { "new", "New" }, { "con", "Consumables" }, { "ench", "Enchanting" }, { "mat", "Trade goods" },
 	{ "quest", "Quest" }, { "other", "Other" }, { "junk", "Junk" }, { "gear", "Gear" },
 }
 ns.SMALL_GROUP = 4
@@ -228,6 +228,8 @@ function ns.BuildSections(kind)
 		e.pinned = db.pins[e.id] and true or nil
 		if e.pinned then e.group = "pin"
 		elseif e.fresh then e.group = "fresh"
+		-- just arrived: its own group, so it is not lost among the rest
+		elseif kind == "bags" and db.newGroup and ns.IsNew(e.id) then e.group = "new"
 		elseif e.set then e.group = "set"
 		else e.group = e.cat end
 	end
@@ -270,7 +272,7 @@ function ns.BuildSections(kind)
 
 	local function setGroups()
 		for _, name in ipairs(setOrder) do
-			local pieces = take(function(e) return e.set == name and not e.pinned and not e.fresh end)
+			local pieces = take(function(e) return e.set == name and not e.pinned and not e.fresh and e.group ~= "new" end)
 			add("Set: " .. name, "set", pieces, #pieces <= ns.SMALL_GROUP)
 		end
 	end

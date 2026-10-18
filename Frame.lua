@@ -734,7 +734,29 @@ function ns.CreateWindow(kind)
 	local function updateHint()
 		if search:GetText() == "" and not search:HasFocus() then hint:Show() else hint:Hide() end
 	end
-	search:SetScript("OnTextChanged", function() updateHint(); f:ApplyFilter() end)
+	-- an X to clear the search, there while there is something to clear
+	local clear = CreateFrame("Button", nil, search)
+	clear:SetWidth(16); clear:SetHeight(16)
+	clear:SetPoint("RIGHT", -2, 0)
+	local cx = ns.Font(clear:CreateFontString(nil, "OVERLAY"), 12)
+	cx:SetPoint("CENTER"); cx:SetText("x"); cx:SetTextColor(ns.rgb(ns.C.textDim))
+	clear:SetScript("OnEnter", function() cx:SetTextColor(ns.rgb(ns.C.accent)) end)
+	clear:SetScript("OnLeave", function() cx:SetTextColor(ns.rgb(ns.C.textDim)) end)
+	clear:SetScript("OnClick", function() search:SetText(""); search:ClearFocus() end)
+	clear:Hide()
+	-- one search for bags and bank: typing in either filters both
+	search:SetScript("OnTextChanged", function(self)
+		updateHint()
+		if self:GetText() ~= "" then clear:Show() else clear:Hide() end
+		f:ApplyFilter()
+		if ns.syncingSearch then return end
+		local other = ns.windows[kind == "bags" and "bank" or "bags"]
+		if other and other.search and other.search:GetText() ~= self:GetText() then
+			ns.syncingSearch = true
+			other.search:SetText(self:GetText())
+			ns.syncingSearch = nil
+		end
+	end)
 	search:HookScript("OnEditFocusGained", updateHint)
 	search:HookScript("OnEditFocusLost", updateHint)
 	f.search = search
