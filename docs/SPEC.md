@@ -46,7 +46,6 @@ Mock: `docs/mock.html`.
 - No stat weights: they go wrong past a hit or haste cap. Specs.lua lists the stats each spec uses and the item types it never uses.
 - Order: weapon types and hands per spec (Blood/Ret/Arms/Feral two-handers, Frost DK/Enh/prot/rogue one-handers), then ClassLoot's lists when installed, then the stats and the Equip/Use lines (tank, caster, melee).
 - Spec = the biggest talent tree; a DK or druid counts as tank by its tank talents or Frost Presence / bear form.
-- The radar ranks by your BiS list; a spec without one sees gear for it at a higher item level than yours.
 
 ## Out of scope
 - Upgrade arrows on bag icons.

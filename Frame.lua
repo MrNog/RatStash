@@ -719,13 +719,7 @@ function ns.CreateWindow(kind)
 		mats:SetPoint("RIGHT", bankBtn, "LEFT", -4, 0)
 		f.bankBtn = bankBtn
 		f.matsBtn = mats
-		local radar = IconButton(f, [[Interface\Icons\INV_Misc_Spyglass_02]], "Loot radar", function() ns.RadarCommand("") end)
-		radar:HookScript("OnEnter", function()
-			GameTooltip:AddLine("Your upgrades per boss for the raid you are in.", 0.7, 0.7, 0.7, true)
-			GameTooltip:Show()
-		end)
-		radar:SetPoint("RIGHT", mats, "LEFT", -4, 0)
-		anchor = radar
+		anchor = mats
 	end
 
 	-- search: never focused automatically, loses focus on Enter, Escape, combat, world clicks, hide
@@ -829,8 +823,6 @@ function ns.CreateWindow(kind)
 		self.search:ClearFocus()
 		self.hoverBag = nil
 		if self.kind == "bank" and ns.atBank then CloseBankFrame() end
-		-- the loot radar sits beside the bags and goes away with them
-		if self.kind == "bags" and ns.radar then ns.radar:Hide() end
 	end)
 	-- a layout skipped while the mouse was on the window happens as soon as it leaves
 	f:SetScript("OnUpdate", function(self)

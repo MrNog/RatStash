@@ -16,9 +16,6 @@ ns.DEFAULTS = {
 	pinAt = "top",
 	showIlvl = true,
 	showBoE = true,
-	radar = true,      -- upgrade toast when loot drops
-	radarSound = true,
-	radarSoundName = "Rat", -- upgrade toast sound: "Rat" (Media\rat.wav) or a PlaySound name
 	vs = { others = true, stack = true, incomplete = false },
 	pins = { [6948] = true }, -- Hearthstone; unpinning stores false so it stays unpinned
 	pos = {},
@@ -223,10 +220,6 @@ SlashCmdList.RATSTASH = function(msg)
 		ns.OpenOptions()
 	elseif msg == "keep" then
 		ns.KeepRaidLoot()
-	elseif msg == "toast" then
-		ns.RadarTest()
-	elseif msg:match("^radar") then
-		ns.RadarCommand(msg:sub(6))
 	else
 		ns.ToggleBags()
 	end
