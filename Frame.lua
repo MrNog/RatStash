@@ -3,7 +3,9 @@ local ADDON, ns = ...
 local SIZE, GAP = 37, 4
 local STEP = SIZE + GAP
 local PAD = 10
-local TOP_H = 24
+local TITLE_H = 26 -- the title bar along the top
+local TOP_H = 26 -- the row under it: search and the icon buttons
+local HEAD_H = TITLE_H + 6 + TOP_H
 local BAGBAR_H = 40
 local FOOT_H = 22
 local HEADER_H = 16
@@ -347,7 +349,7 @@ end
 function W:Layout()
 	self.pending = nil
 	self.laidOut = true
-	if self.matsBtn then self.matsBtn:SetAlpha(ns.atBank and 1 or 0.45) end
+	if self.matsBtn then ns.SetFramedIconUsable(self.matsBtn, ns.atBank) end
 	local sections, free, cached = ns.BuildSections(self.kind)
 	self.cached = cached
 	local cols = ns.db.columns[self.kind]
@@ -459,11 +461,11 @@ end
 function W:Resize(cw, ch)
 	local barH = self.bagbar:IsShown() and BAGBAR_H or 0
 	self.content:ClearAllPoints()
-	self.content:SetPoint("TOPLEFT", PAD, -(PAD + TOP_H + barH + 8))
+	self.content:SetPoint("TOPLEFT", PAD, -(HEAD_H + barH + 8))
 	-- wide enough for the title row: name, search box and the icon buttons
 	local w = math.max(cw + PAD * 2, self.kind == "bags" and 440 or 390)
 	self:SetWidth(w)
-	local h = PAD + TOP_H + barH + 8 + ch + 8 + FOOT_H + PAD - 4
+	local h = HEAD_H + barH + 8 + ch + 8 + FOOT_H + PAD - 4
 	self:SetHeight(h)
 	self:UpdateArt(w, h)
 end
@@ -471,23 +473,31 @@ end
 -- Show the part of the picture that has the window's shape, so it is never stretched. Short rows end
 -- on the left, so the free space is on the right: a narrow window keeps the RIGHT edge of the art,
 -- a wide one keeps the middle band.
-function W:UpdateArt(w, h)
+-- The stash picture behind a window of w x h: art and wash are textures covering the window.
+-- Used by the bag windows and the settings window, and follows the Background art settings.
+function ns.PaintArt(art, wash, w, h)
 	local a = ns.db.bgOn and (ns.db.bgArt or 0) or 0
-	if a <= 0 then self.art:Hide(); self.wash:Hide(); return end
+	if a <= 0 then art:Hide(); wash:Hide(); return end
+	art:SetTexture(BG_TEX)
 	local want = w / h
 	if want < BG_ASPECT then
 		local span = want / BG_ASPECT
-		self.art:SetTexCoord(1 - span, 1, 0, 1)
+		art:SetTexCoord(1 - span, 1, 0, 1)
 	else
 		local span = BG_ASPECT / want
-		self.art:SetTexCoord(0, 1, 0.5 - span / 2, 0.5 + span / 2)
+		art:SetTexCoord(0, 1, 0.5 - span / 2, 0.5 + span / 2)
 	end
-	self.art:Show()
+	art:Show()
 	-- darker on the left where the icons are, lighter on the right where the art is;
 	-- stronger art = thinner wash
 	local d = ns.C.panelD
-	self.wash:SetGradientAlpha("HORIZONTAL", d[1], d[2], d[3], 0.95 - a * 0.25, d[1], d[2], d[3], 0.85 - a * 0.65)
-	self.wash:Show()
+	wash:SetTexture(ns.FLAT)
+	wash:SetGradientAlpha("HORIZONTAL", d[1], d[2], d[3], 0.95 - a * 0.25, d[1], d[2], d[3], 0.85 - a * 0.65)
+	wash:Show()
+end
+
+function W:UpdateArt(w, h)
+	ns.PaintArt(self.art, self.wash, w, h)
 end
 
 --------------------------------------------------------------------------------
@@ -568,8 +578,8 @@ end
 function W:CreateBagBar()
 	local bar = CreateFrame("Frame", nil, self)
 	bar:SetHeight(BAGBAR_H)
-	bar:SetPoint("TOPLEFT", PAD, -(PAD + TOP_H + 4))
-	bar:SetPoint("TOPRIGHT", -PAD, -(PAD + TOP_H + 4))
+	bar:SetPoint("TOPLEFT", PAD, -(HEAD_H + 4))
+	bar:SetPoint("TOPRIGHT", -PAD, -(HEAD_H + 4))
 	bar:Hide()
 	self.bagbar = bar
 	self.bagButtons = {}
@@ -625,7 +635,7 @@ end
 --------------------------------------------------------------------------------
 
 local function IconButton(parent, texture, tipText, onClick)
-	local b = ns.FlatIconButton(parent, texture, 20)
+	local b = ns.FramedIconButton(parent, texture, TOP_H)
 	b:SetScript("OnClick", onClick)
 	b:HookScript("OnEnter", function(self)
 		Tooltip_Anchor(self)
@@ -664,8 +674,8 @@ function ns.CreateWindow(kind)
 	wash:SetTexture(ns.FLAT)
 	f.art, f.wash = art, wash
 	local headRule = ns.Rule(f)
-	headRule:SetPoint("TOPLEFT", 1, -(PAD + TOP_H + 1))
-	headRule:SetPoint("TOPRIGHT", -1, -(PAD + TOP_H + 1))
+	headRule:SetPoint("TOPLEFT", 1, -(HEAD_H + 1))
+	headRule:SetPoint("TOPRIGHT", -1, -(HEAD_H + 1))
 	local footRule = ns.Rule(f)
 	footRule:SetPoint("BOTTOMLEFT", 1, PAD + FOOT_H - 2)
 	footRule:SetPoint("BOTTOMRIGHT", -1, PAD + FOOT_H - 2)
@@ -674,11 +684,8 @@ function ns.CreateWindow(kind)
 	local pos = ns.db.pos[kind] or DEFAULT_POS[kind]
 	f:SetPoint(pos[1], UIParent, pos[3], pos[4], pos[5])
 
-	-- the title row drags the window
-	local drag = CreateFrame("Frame", nil, f)
-	drag:SetPoint("TOPLEFT", PAD, -PAD)
-	drag:SetPoint("TOPRIGHT", -PAD, -PAD)
-	drag:SetHeight(TOP_H)
+	-- the title bar drags the window; the name sits in it, the red X at its end
+	local drag, title = ns.TitleBar(f, TITLE_H)
 	drag:EnableMouse(true)
 	drag:RegisterForDrag("LeftButton")
 	drag:SetScript("OnDragStart", function() f:StartMoving() end)
@@ -688,17 +695,11 @@ function ns.CreateWindow(kind)
 		ns.db.pos[kind] = { p, "UIParent", rp, x, y }
 	end)
 
-	local title = ns.Font(drag:CreateFontString(nil, "OVERLAY"), 14)
-	title:SetTextColor(ns.rgb(ns.C.accentText))
-	title:SetPoint("LEFT", 0, 0)
 	title:SetText(UnitName("player") .. (kind == "bags" and "'s Bags" or "'s Bank"))
-
-	local close = ns.FlatButton(f, "X", 22, 20)
-	close:SetPoint("TOPRIGHT", -PAD, -PAD - 2)
-	close:SetScript("OnClick", function() f:Hide() end)
+	ns.Medallion(f)
 
 	local opts = IconButton(f, [[Interface\Icons\INV_Misc_Gear_01]], "Options", function() ns.OpenOptions() end)
-	opts:SetPoint("RIGHT", close, "LEFT", -4, 0)
+	opts:SetPoint("TOPRIGHT", -PAD, -(TITLE_H + 6))
 	local bagsBtn = IconButton(f, [[Interface\Icons\INV_Misc_Bag_08]], "Show bag slots", function()
 		if f.bagbar:IsShown() then f.bagbar:Hide() else f.bagbar:Show() end
 		f:Layout()
@@ -723,25 +724,21 @@ function ns.CreateWindow(kind)
 	end
 
 	-- search: never focused automatically, loses focus on Enter, Escape, combat, world clicks, hide
-	local search = ns.FlatInput(f, name .. "Search", kind == "bags" and 150 or 170, 20)
+	-- the search box fills the row from past the medallion to the icon buttons
+	local search = ns.SearchInput(f, name .. "Search", 150, 22)
+	search:SetPoint("LEFT", f, "TOPLEFT", 48, -(TITLE_H + 6 + TOP_H / 2))
 	search:SetPoint("RIGHT", anchor, "LEFT", -8, 0)
 	search:SetScript("OnEscapePressed", search.ClearFocus)
 	search:SetScript("OnEnterPressed", search.ClearFocus)
 	local hint = ns.Font(search:CreateFontString(nil, "OVERLAY"), 11)
 	hint:SetTextColor(ns.rgb(ns.C.textDim))
-	hint:SetPoint("LEFT", 6, 0)
+	hint:SetPoint("LEFT", 22, 0)
 	hint:SetText(SEARCH)
 	local function updateHint()
 		if search:GetText() == "" and not search:HasFocus() then hint:Show() else hint:Hide() end
 	end
 	-- an X to clear the search, there while there is something to clear
-	local clear = CreateFrame("Button", nil, search)
-	clear:SetWidth(16); clear:SetHeight(16)
-	clear:SetPoint("RIGHT", -2, 0)
-	local cx = ns.Font(clear:CreateFontString(nil, "OVERLAY"), 12)
-	cx:SetPoint("CENTER"); cx:SetText("x"); cx:SetTextColor(ns.rgb(ns.C.textDim))
-	clear:SetScript("OnEnter", function() cx:SetTextColor(ns.rgb(ns.C.accent)) end)
-	clear:SetScript("OnLeave", function() cx:SetTextColor(ns.rgb(ns.C.textDim)) end)
+	local clear = ns.SearchClearButton(search)
 	clear:SetScript("OnClick", function() search:SetText(""); search:ClearFocus() end)
 	clear:Hide()
 	-- one search for bags and bank: typing in either filters both
@@ -761,16 +758,8 @@ function ns.CreateWindow(kind)
 	search:HookScript("OnEditFocusLost", updateHint)
 	f.search = search
 
-	title:SetPoint("RIGHT", search, "LEFT", -10, 0)
-	title:SetJustifyH("LEFT")
-
-	-- the drag area stops before the search box so it never sits on top of the buttons
-	drag:ClearAllPoints()
-	drag:SetPoint("TOPLEFT", PAD, -PAD)
-	drag:SetPoint("RIGHT", search, "LEFT", -10, 0)
-	drag:SetHeight(TOP_H)
-	local top = drag:GetFrameLevel() + 2
-	for _, b in ipairs({ opts, bagsBtn, anchor, close, f.bankBtn }) do b:SetFrameLevel(top) end
+	local top = f:GetFrameLevel() + 3
+	for _, b in ipairs({ opts, bagsBtn, anchor, f.bankBtn }) do b:SetFrameLevel(top) end
 	search:SetFrameLevel(top)
 
 	f:CreateBagBar()
@@ -793,7 +782,7 @@ function ns.CreateWindow(kind)
 	f.freeText = freeText
 
 	if kind == "bags" then
-		local keep = ns.FlatButton(f, "Keep raid loot", 100, 18, true)
+		local keep = ns.RedButton(f, "Keep raid loot", 110, 20)
 		keep:SetPoint("LEFT", freeText, "RIGHT", 12, 0)
 		keep:SetScript("OnClick", function()
 			ns.KeepRaidLoot()
@@ -823,7 +812,7 @@ function ns.CreateWindow(kind)
 		offline:Hide()
 		f.offline = offline
 
-		local stack = ns.FlatButton(f, "Stack to bank", 100, 18, true)
+		local stack = ns.RedButton(f, "Stack to bank", 110, 20)
 		stack:SetPoint("LEFT", freeText, "RIGHT", 12, 0)
 		stack:SetScript("OnClick", ns.StackToBank)
 		stack:HookScript("OnEnter", function(self)

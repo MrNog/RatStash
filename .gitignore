@@ -1,2 +1,2 @@
 # source art is kept locally; the game only loads the .blp files
-Media/*.png
+Media/**/*.png

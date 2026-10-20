@@ -1,6 +1,7 @@
 local ADDON, ns = ...
 
--- RatStash's own settings window, in the same flat style as the bag windows: two columns
+-- RatStash's own settings window: two columns of one-line rows, the setting's name on the left and
+-- its control on the right edge. Each call below still carries its setting's one-line description.
 
 local C, rgb
 local panel
@@ -8,8 +9,10 @@ local refreshers = {}
 
 local COL_W = 340      -- width of one column
 local COL_GAP = 36
-local MARGIN = 18
+local MARGIN = 26
+local ROW_H = 30
 local colX = MARGIN    -- the column the helpers below are drawing into
+local stripe = false   -- every other row in a section gets a faint band
 
 local function Changed()
 	for _, fn in ipairs(refreshers) do fn() end
@@ -32,83 +35,78 @@ local function Section(parent, y, text)
 	local rule = ns.Rule(parent)
 	rule:SetPoint("LEFT", fs, "RIGHT", 8, 0)
 	rule:SetWidth(math.max(1, COL_W - fs:GetStringWidth() - 8))
-	return y - 22
+	stripe = false
+	return y - 20
 end
 
-local function Hint(parent, anchor, text)
-	local fs = Text(parent, 10, C.textDim)
-	fs:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -3)
-	fs:SetWidth(COL_W)
-	fs:SetJustifyH("LEFT")
-	fs:SetText(text)
-	return fs
+-- one setting's row: its name on the left; the control goes on the right
+local function Row(parent, y, label)
+	local row = CreateFrame("Button", nil, parent)
+	row:SetPoint("TOPLEFT", colX - 6, y)
+	row:SetWidth(COL_W + 12)
+	row:SetHeight(ROW_H)
+	if stripe then
+		local band = row:CreateTexture(nil, "BACKGROUND")
+		band:SetTexture(ns.FLAT)
+		band:SetVertexColor(1, 1, 1, 0.03)
+		band:SetAllPoints(row)
+	end
+	stripe = not stripe
+	local hover = row:CreateTexture(nil, "HIGHLIGHT")
+	hover:SetTexture(ns.FLAT)
+	hover:SetVertexColor(1, 1, 1, 0.05)
+	hover:SetAllPoints(row)
+	local fs = Text(row, 13)
+	fs:SetPoint("LEFT", 6, 0)
+	fs:SetText(label)
+	return row
 end
 
--- flat checkbox: a hairline square that fills gold when on; the label is clickable too
+-- checkbox: retail's dark box with a bronze edge and a yellow tick; the whole row toggles it
 local function Check(parent, y, label, hint, get, set)
-	local b = CreateFrame("Button", nil, parent)
-	b:SetPoint("TOPLEFT", colX, y)
-	b:SetHeight(16)
-	b:SetWidth(COL_W)
-	local box = CreateFrame("Frame", nil, b)
-	box:SetWidth(14); box:SetHeight(14)
-	box:SetPoint("LEFT")
-	ns.Skin(box, C.panelD, 1)
-	local fill = box:CreateTexture(nil, "OVERLAY")
-	fill:SetTexture(ns.FLAT)
-	fill:SetPoint("TOPLEFT", 3, -3); fill:SetPoint("BOTTOMRIGHT", -3, 3)
-	fill:SetVertexColor(rgb(C.accent))
-	local fs = Text(b, 12)
-	fs:SetPoint("LEFT", box, "RIGHT", 8, 0)
-	fs:SetText(label)
-	b:SetScript("OnClick", function() set(not get()); Changed() end)
-	b:SetScript("OnEnter", function() box:SetBackdropBorderColor(rgb(C.borderHi)) end)
-	b:SetScript("OnLeave", function() box:SetBackdropBorderColor(rgb(C.border)) end)
-	Hint(parent, fs, hint)
+	local row = Row(parent, y, label)
+	local box, tick = ns.CheckBox(row, 20)
+	box:SetPoint("RIGHT", -4, 0)
+	row:SetScript("OnClick", function() set(not get()); Changed() end)
 	refreshers[#refreshers + 1] = function()
-		if get() then fill:Show() else fill:Hide() end
+		if get() then tick:Show() else tick:Hide() end
 	end
-	return y - 42
+	return y - ROW_H
 end
 
--- a row of flat buttons, the chosen one filled gold
+-- a dropdown on the right of its row, showing the current choice
 local function Choice(parent, y, label, hint, values, get, set)
-	local fs = Text(parent, 12)
-	fs:SetPoint("TOPLEFT", colX, y)
-	fs:SetText(label)
-	local buttons = {}
-	local w = math.floor((COL_W - 4 * (#values - 1)) / #values)
-	for i, pair in ipairs(values) do
-		local b = ns.FlatButton(parent, pair[2], w, 20)
-		b.text:SetShadowOffset(0, 0)
-		b:SetPoint("TOPLEFT", colX + (i - 1) * (w + 4), y - 18)
-		b:SetScript("OnClick", function() set(pair[1]); Changed() end)
-		buttons[i] = b
-	end
-	Hint(parent, buttons[1], hint)
-	refreshers[#refreshers + 1] = function()
-		for i, pair in ipairs(values) do
-			local b, on = buttons[i], get() == pair[1]
-			b.edge = on and C.accent or C.border
-			b:SetBackdropColor(rgb(on and C.accent or C.surface))
-			b:SetBackdropBorderColor(rgb(b.edge))
-			b.text:SetTextColor(rgb(on and C.dark or C.text))
-		end
-	end
-	return y - 60
+	local row = Row(parent, y, label)
+	local drop = ns.Dropdown(row, 150, values, get, function(key) set(key); Changed() end)
+	drop:SetPoint("RIGHT", -4, 0)
+	refreshers[#refreshers + 1] = function() drop:Refresh() end
+	return y - ROW_H
 end
 
--- label, value and [-] [+]
+-- The font draws "-" below the middle of its line, so the signs are gold bars centred in the button.
+local function SignButton(parent, plus)
+	local b = ns.RedButton(parent, "", 24, 22)
+	local bars = { { 8, 2 } }
+	if plus then bars[2] = { 2, 8 } end
+	for _, size in ipairs(bars) do
+		local bar = b:CreateTexture(nil, "OVERLAY")
+		bar:SetTexture(ns.FLAT)
+		bar:SetVertexColor(1, 0.82, 0)
+		bar:SetWidth(size[1]); bar:SetHeight(size[2])
+		bar:SetPoint("CENTER", 0, 0)
+	end
+	return b
+end
+
+-- [-] value [+] on the right of its row
 local function Stepper(parent, y, label, hint, lo, hi, step, fmt, get, set)
-	local fs = Text(parent, 12)
-	fs:SetPoint("TOPLEFT", colX, y - 3)
-	fs:SetText(label)
-	local plus = ns.FlatButton(parent, "+", 22, 20)
-	plus:SetPoint("TOPRIGHT", parent, "TOPLEFT", colX + COL_W, y)
-	local value = Text(parent, 12, C.accentText)
+	local row = Row(parent, y, label)
+	local plus = SignButton(row, true)
+	plus:SetPoint("RIGHT", -4, 0)
+	local value = Text(row, 13, C.accentText)
 	value:SetWidth(44)
 	value:SetPoint("RIGHT", plus, "LEFT", -4, 0)
-	local minus = ns.FlatButton(parent, "-", 22, 20)
+	local minus = SignButton(row, false)
 	minus:SetPoint("RIGHT", value, "LEFT", -4, 0)
 	local function bump(d)
 		local v = math.floor((get() + d) / step + 0.5) * step
@@ -117,9 +115,8 @@ local function Stepper(parent, y, label, hint, lo, hi, step, fmt, get, set)
 	end
 	minus:SetScript("OnClick", function() bump(-step) end)
 	plus:SetScript("OnClick", function() bump(step) end)
-	Hint(parent, fs, hint)
 	refreshers[#refreshers + 1] = function() value:SetText(fmt:format(get())) end
-	return y - 42
+	return y - ROW_H
 end
 
 local LAYOUTS = { { "grid", "One grid" }, { "sets", "Grid + sets" }, { "groups", "Groups" } }
@@ -138,26 +135,24 @@ function ns.CreateOptions()
 	panel:SetPoint("CENTER")
 	ns.Skin(panel, C.panelD, 0.97)
 	tinsert(UISpecialFrames, "RatStashOptions")
+	-- the stash picture behind the settings, as behind the bags
+	local art = panel:CreateTexture(nil, "BORDER")
+	art:SetPoint("TOPLEFT", 1, -1); art:SetPoint("BOTTOMRIGHT", -1, 1)
+	local wash = panel:CreateTexture(nil, "ARTWORK")
+	wash:SetAllPoints(art)
+	local function paintArt() ns.PaintArt(art, wash, panel:GetWidth(), panel:GetHeight()) end
 
-	local head = CreateFrame("Frame", nil, panel)
-	head:SetPoint("TOPLEFT", 1, -1); head:SetPoint("TOPRIGHT", -1, -1)
-	head:SetHeight(32)
+	local head, title = ns.TitleBar(panel, 26)
 	head:EnableMouse(true)
 	head:RegisterForDrag("LeftButton")
 	head:SetScript("OnDragStart", function() panel:StartMoving() end)
 	head:SetScript("OnDragStop", function() panel:StopMovingOrSizing() end)
-	local title = Text(head, 14, C.accentText)
-	title:SetPoint("LEFT", MARGIN - 1, 0)
-	title:SetText("RatStash settings")
-	local rule = ns.Rule(head)
-	rule:SetPoint("BOTTOMLEFT"); rule:SetPoint("BOTTOMRIGHT")
-	local close = ns.FlatButton(head, "X", 22, 20)
-	close:SetPoint("RIGHT", -8, 0)
-	close:SetScript("OnClick", function() panel:Hide() end)
+	title:SetText("RatStash Settings")
+	ns.Medallion(panel)
 
 	-- left column: how the windows are laid out, and what items show
 	colX = MARGIN
-	local y = -46
+	local y = -54
 	y = Section(panel, y, "Layout")
 	y = Check(panel, y, "Auto sort", "Fixed order. Off: items show where they really are, like Bagnon.",
 		function() return db.sort end, function(v) db.sort = v end)
@@ -175,7 +170,7 @@ function ns.CreateOptions()
 
 	-- right column: size and look, item badges, virtual stacks
 	colX = MARGIN + COL_W + COL_GAP
-	y = -46
+	y = -54
 	y = Section(panel, y, "Size & look")
 	y = Stepper(panel, y, "Bags columns", "Items per row in the bags window.", 6, 20, 1, "%d",
 		function() return db.columns.bags end, function(v) db.columns.bags = v end)
@@ -188,7 +183,7 @@ function ns.CreateOptions()
 	y = Stepper(panel, y, "Art strength", "How much the picture shows through.", 0.1, 1, 0.1, "%.1f",
 		function() return db.bgArt end, function(v) db.bgArt = v end)
 
-	y = Section(panel, y - 6, "Items")
+	y = Section(panel, y - 10, "Items")
 	y = Check(panel, y, "Show item level", "Gear shows its item level in the quality color.",
 		function() return db.showIlvl end, function(v) db.showIlvl = v end)
 	y = Check(panel, y, "Show BoE tag", "Bind-on-equip gear gets a gold BoE tag.",
@@ -202,7 +197,7 @@ function ns.CreateOptions()
 
 	-- virtual stacks go under the left column, which is shorter
 	colX = MARGIN
-	local vy = Section(panel, leftEnd - 6, "Virtual stacks")
+	local vy = Section(panel, leftEnd - 10, "Virtual stacks")
 	vy = Check(panel, vy, "Merge unstackable items", "Identical items that can't stack show as one slot.",
 		function() return db.vs.others end, function(v) db.vs.others = v end)
 	vy = Check(panel, vy, "Merge stackable items", "Full stacks of the same item show as one slot.",
@@ -210,8 +205,10 @@ function ns.CreateOptions()
 	vy = Check(panel, vy, "... including incomplete stacks", "Partial stacks join the merged slot too.",
 		function() return db.vs.incomplete end, function(v) db.vs.incomplete = v end)
 
-	panel:SetHeight(-math.min(y, vy) + 10)
+	panel:SetHeight(-math.min(y, vy) + 16)
+	refreshers[#refreshers + 1] = paintArt
 	panel:SetScript("OnShow", function() for _, fn in ipairs(refreshers) do fn() end end)
+	panel:SetScript("OnHide", function() ns.CloseDropdowns() end)
 end
 
 function ns.OpenOptions()
