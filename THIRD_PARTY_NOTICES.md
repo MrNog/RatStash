@@ -1,17 +1,33 @@
 # Third-party notices
 
-These files in `Media/UI/` are World of Warcraft retail artwork, © Blizzard Entertainment, obtained via
-DragonUI. They are Blizzard's art, not covered by RatStash's [LICENSE](LICENSE), and are included only
-so the addon can show them in the game:
+Parts of `Style.lua` (the dropdown's nine-slice text holder and the close button's states) are adapted
+from **DragonUI**, released under the MIT License:
 
-- `redbutton2x.blp`: the close button (DragonUI `Textures/UI/`)
-- `iconframes.blp`: the gold and grey talent icon frames, cut from the retail talents sheet
-  (DragonUI `Textures/Talents/`)
-- `controls.blp`: the checkbox, tick, search field, magnifying glass and clear button
-  (DragonUI `Textures/ForeverUI/controls-basic`)
-- `dropdown.blp`: the dropdown text holder and its arrow button (DragonUI `Textures/UI/dropdownbutton`)
+```
+MIT License
 
-`redplate.blp` (the buttons), `ring.blp` (the medallion ring) and `medallion.blp` (RatStash's bag icon,
-cut round) are RatStash's own.
+Copyright (c) 2026 NeticSoul and DragonUI contributors
 
-Icons and fonts used at runtime belong to Blizzard Entertainment and are loaded from the game client.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+Those parts stay under the MIT License above; the rest of RatStash is under its own [LICENSE](LICENSE).
+
+The interface textures in `Media/UI/` other than `redplate`, `ring` and `medallion` are World of
+Warcraft artwork © Blizzard Entertainment, included only so the addon can show them in the game.
