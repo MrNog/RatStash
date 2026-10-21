@@ -133,16 +133,17 @@ function ns.CreateOptions()
 	panel:SetMovable(true)
 	panel:SetClampedToScreen(true)
 	panel:SetPoint("CENTER")
-	ns.Skin(panel, C.panelD, 0.97)
+	ns.SkinWindow(panel)
 	tinsert(UISpecialFrames, "RatStashOptions")
 	-- the stash picture behind the settings, as behind the bags
 	local art = panel:CreateTexture(nil, "BORDER")
-	art:SetPoint("TOPLEFT", 1, -1); art:SetPoint("BOTTOMRIGHT", -1, 1)
+	art:SetPoint("TOPLEFT", ns.INSET, -ns.INSET); art:SetPoint("BOTTOMRIGHT", -ns.INSET, ns.INSET)
+	ns.CoverCorners(panel, art)
 	local wash = panel:CreateTexture(nil, "ARTWORK")
 	wash:SetAllPoints(art)
 	local function paintArt() ns.PaintArt(art, wash, panel:GetWidth(), panel:GetHeight()) end
 
-	local head, title = ns.TitleBar(panel, 26)
+	local head, title = ns.TitleBar(panel, 30)
 	head:EnableMouse(true)
 	head:RegisterForDrag("LeftButton")
 	head:SetScript("OnDragStart", function() panel:StartMoving() end)
@@ -152,7 +153,7 @@ function ns.CreateOptions()
 
 	-- left column: how the windows are laid out, and what items show
 	colX = MARGIN
-	local y = -54
+	local y = -58
 	y = Section(panel, y, "Layout")
 	y = Check(panel, y, "Auto sort", "Fixed order. Off: items show where they really are, like Bagnon.",
 		function() return db.sort end, function(v) db.sort = v end)
@@ -170,7 +171,7 @@ function ns.CreateOptions()
 
 	-- right column: size and look, item badges, virtual stacks
 	colX = MARGIN + COL_W + COL_GAP
-	y = -54
+	y = -58
 	y = Section(panel, y, "Size & look")
 	y = Stepper(panel, y, "Bags columns", "Items per row in the bags window.", 6, 20, 1, "%d",
 		function() return db.columns.bags end, function(v) db.columns.bags = v end)

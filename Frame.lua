@@ -3,7 +3,7 @@ local ADDON, ns = ...
 local SIZE, GAP = 37, 4
 local STEP = SIZE + GAP
 local PAD = 10
-local TITLE_H = 26 -- the title bar along the top
+local TITLE_H = 30 -- the title bar along the top, as Ratree's
 local TOP_H = 26 -- the row under it: search and the icon buttons
 local HEAD_H = TITLE_H + 6 + TOP_H
 local BAGBAR_H = 40
@@ -664,21 +664,23 @@ function ns.CreateWindow(kind)
 	f:SetMovable(true)
 	f:SetClampedToScreen(true)
 	f:SetScale(ns.db.scale)
-	ns.Skin(f, ns.C.panelD, 0.95)
-	-- the stash art behind the items, under a dark wash so icons and numbers stay readable
+	ns.SkinWindow(f)
+	-- the stash art behind the items, under a dark wash so icons and numbers stay readable;
+	-- inside the cut frame, its corners cut parallel to the window's
 	local art = f:CreateTexture(nil, "BORDER")
-	art:SetPoint("TOPLEFT", 1, -1); art:SetPoint("BOTTOMRIGHT", -1, 1)
+	art:SetPoint("TOPLEFT", ns.INSET, -ns.INSET); art:SetPoint("BOTTOMRIGHT", -ns.INSET, ns.INSET)
+	ns.CoverCorners(f, art)
 	art:SetTexture(BG_TEX)
 	local wash = f:CreateTexture(nil, "ARTWORK")
 	wash:SetAllPoints(art)
 	wash:SetTexture(ns.FLAT)
 	f.art, f.wash = art, wash
 	local headRule = ns.Rule(f)
-	headRule:SetPoint("TOPLEFT", 1, -(HEAD_H + 1))
-	headRule:SetPoint("TOPRIGHT", -1, -(HEAD_H + 1))
+	headRule:SetPoint("TOPLEFT", ns.INSET, -(HEAD_H + 1))
+	headRule:SetPoint("TOPRIGHT", -ns.INSET, -(HEAD_H + 1))
 	local footRule = ns.Rule(f)
-	footRule:SetPoint("BOTTOMLEFT", 1, PAD + FOOT_H - 2)
-	footRule:SetPoint("BOTTOMRIGHT", -1, PAD + FOOT_H - 2)
+	footRule:SetPoint("BOTTOMLEFT", ns.INSET, PAD + FOOT_H - 2)
+	footRule:SetPoint("BOTTOMRIGHT", -ns.INSET, PAD + FOOT_H - 2)
 	tinsert(UISpecialFrames, name)
 
 	local pos = ns.db.pos[kind] or DEFAULT_POS[kind]

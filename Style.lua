@@ -259,24 +259,83 @@ function ns.Medallion(parent, size)
 	return m
 end
 
--- the thin title bar along a window's top: dark gradient, a hairline under it, the title centred
--- in small gold, and the red X at its right end. Returns the bar and the title.
+-- Cut corners, as Ratree's window. 3.3.5a cannot mask a frame, so Media\UI\chamfer (a white
+-- cut-corner fill and a cut-corner line) is sliced nine ways behind the window and tinted.
+ns.WIN_FILL = { 0.043, 0.043, 0.047 }
+ns.WIN_EDGE = { 0.235, 0.204, 0.157 }
+-- content sits INSET in from the edge; a COVER-sized triangle in the fill colour cuts the
+-- corners of square art inside the window parallel to the cut
+ns.INSET, ns.COVER = 6, 6.5
+local CH_U = { 0, 24 / 128, 40 / 128, 64 / 128 }
+local CORNER = 12
+
+local function ninePieces(host, frame, layer, ox, color)
+	local xs = { { "LEFT", 0 }, { "LEFT", CORNER }, { "RIGHT", -CORNER }, { "RIGHT", 0 } }
+	local ys = { { "TOP", 0 }, { "TOP", -CORNER }, { "BOTTOM", CORNER }, { "BOTTOM", 0 } }
+	for row = 1, 3 do
+		for col = 1, 3 do
+			local tex = host:CreateTexture(nil, layer)
+			tex:SetTexture(UI .. "chamfer")
+			tex:SetTexCoord(ox + CH_U[col], ox + CH_U[col + 1], CH_U[row], CH_U[row + 1])
+			local x1, y1, x2, y2 = xs[col], ys[row], xs[col + 1], ys[row + 1]
+			tex:SetPoint("TOPLEFT", frame, y1[1] .. x1[1], x1[2], y1[2])
+			tex:SetPoint("BOTTOMRIGHT", frame, y2[1] .. x2[1], x2[2], y2[2])
+			tex:SetVertexColor(color[1], color[2], color[3], color[4] or 1)
+		end
+	end
+end
+
+-- A window's cut-corner fill and edge. The line is drawn on its own frame above the art and
+-- the title bar (children draw over their parent), below the medallion.
+function ns.SkinWindow(f)
+	f:SetBackdrop(nil)
+	ninePieces(f, f, "BACKGROUND", 0, ns.WIN_FILL)
+	local edge = CreateFrame("Frame", nil, f)
+	edge:SetAllPoints(f)
+	edge:SetFrameLevel(f:GetFrameLevel() + 8)
+	ninePieces(edge, f, "OVERLAY", 0.5, ns.WIN_EDGE)
+	return f
+end
+
+local COVER_TC = { TOPLEFT = { 0, 1, 0, 1 }, TOPRIGHT = { 1, 0, 0, 1 },
+	BOTTOMLEFT = { 0, 1, 1, 0 }, BOTTOMRIGHT = { 1, 0, 1, 0 } }
+function ns.CoverCorners(host, region, corners)
+	local F = ns.WIN_FILL
+	for _, c in ipairs(corners or { "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }) do
+		local tex = host:CreateTexture(nil, "OVERLAY")
+		tex:SetTexture(UI .. "cutcover")
+		tex:SetTexCoord(unpack(COVER_TC[c]))
+		tex:SetWidth(ns.COVER); tex:SetHeight(ns.COVER)
+		tex:SetPoint(c, region, c, 0, 0)
+		tex:SetVertexColor(F[1], F[2], F[3], 1)
+	end
+end
+
+-- the thin title bar along a window's top, as Ratree's: a dark gradient inside the cut frame, its
+-- top corners cut, a hairline under it, the title centred in small gold, and the red X at its
+-- right end. Returns the bar and the title.
 function ns.TitleBar(parent, height)
 	local bar = CreateFrame("Frame", nil, parent)
 	bar:SetHeight(height)
-	bar:SetPoint("TOPLEFT", 1, -1)
-	bar:SetPoint("TOPRIGHT", -1, -1)
+	bar:SetPoint("TOPLEFT", 0, 0)
+	bar:SetPoint("TOPRIGHT", 0, 0)
 	local bg = bar:CreateTexture(nil, "BACKGROUND")
 	bg:SetTexture(FLAT)
 	bg:SetGradientAlpha("VERTICAL", 0.082, 0.075, 0.059, 1, 0.141, 0.125, 0.102, 1)
-	bg:SetAllPoints(bar)
-	local rule = ns.Rule(bar)
-	rule:SetPoint("BOTTOMLEFT"); rule:SetPoint("BOTTOMRIGHT")
+	bg:SetPoint("TOPLEFT", ns.INSET, -ns.INSET)
+	bg:SetPoint("BOTTOMRIGHT", -ns.INSET, 0)
+	ns.CoverCorners(bar, bg, { "TOPLEFT", "TOPRIGHT" })
+	local rule = bar:CreateTexture(nil, "BORDER")
+	rule:SetTexture(FLAT)
+	rule:SetVertexColor(ns.WIN_EDGE[1], ns.WIN_EDGE[2], ns.WIN_EDGE[3])
+	rule:SetHeight(1)
+	rule:SetPoint("BOTTOMLEFT", bg, "BOTTOMLEFT"); rule:SetPoint("BOTTOMRIGHT", bg, "BOTTOMRIGHT")
 	local title = ns.Font(bar:CreateFontString(nil, "OVERLAY"), 12)
 	title:SetTextColor(0.878, 0.761, 0.478)
-	title:SetPoint("CENTER")
+	title:SetPoint("CENTER", bg, "CENTER")
 	local close = ns.CloseButton(bar)
-	close:SetPoint("RIGHT", 0, 0)
+	close:SetWidth(20); close:SetHeight(20)   -- clear of the bar's top and its hairline
+	close:SetPoint("RIGHT", bg, "RIGHT", -3, 0)
 	close:SetScript("OnClick", function() parent:Hide() end)
 	bar.close = close
 	return bar, title
