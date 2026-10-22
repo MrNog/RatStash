@@ -378,10 +378,29 @@ function W:Layout()
 		sec.movable = sec.small and sec.style == "cat" and sec.title ~= "Free" and not sec.stay
 	end
 
+	-- raid loot (and reserved) sits on its own band, ruled off from your own items
+	if not self.raidRule then
+		self.raidRule = ns.Rule(content)
+		self.raidRule:SetVertexColor(ns.rgb(ns.C.accent, 0.7))
+	end
+	self.raidRule:Hide()
+
 	local x, y, rowH = 0, 0, 0
 	local bi, hi = 0, 0
+	local inRaid = false
 	local function place(sec)
 		local th = sec.title and HEADER_H or 0
+		local raid = sec.style == "raid" or sec.style == "hr"
+		if inRaid and not raid then
+			y = y + rowH + 10
+			x, rowH = 0, 0
+			self.raidRule:ClearAllPoints()
+			self.raidRule:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -y)
+			self.raidRule:SetWidth(totalW)
+			self.raidRule:Show()
+			y = y + 12
+		end
+		inRaid = raid
 		if x > 0 and (not sec.small or x + sec.w > totalW) then
 			y = y + rowH + 12
 			x, rowH = 0, 0
@@ -423,7 +442,7 @@ function W:Layout()
 		place(table.remove(queue, 1))
 		-- a gap is left on this row: pull up one of the next few small category blocks that fits it
 		local filled = true
-		while filled and x > 0 and x <= totalW do
+		while filled and not inRaid and x > 0 and x <= totalW do
 			filled = false
 			for i = 1, math.min(LOOKAHEAD, #queue) do
 				local s2 = queue[i]

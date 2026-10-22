@@ -94,9 +94,15 @@ local function MatKind(r)
 	return MAT_BY_SUB[r.stype] or "Other mats"
 end
 
+-- quest items the game files under another class
+local QUEST_BY_ID = {
+	[50226] = true, -- Festergut's Acidic Blood
+	[50231] = true, -- Rotface's Acidic Blood
+}
+
 local function Category(r, bag, slot)
 	if r.quality == 0 then return "junk" end
-	if r.itype == QUEST then return "quest" end
+	if r.itype == QUEST or QUEST_BY_ID[r.id] then return "quest" end
 	if MAT_BY_ID[r.id] then return "mat" end
 	if bag and GetContainerItemQuestInfo then
 		local isQuest = GetContainerItemQuestInfo(bag, slot)
@@ -225,7 +231,7 @@ ns.On("CHAT_MSG_LOOT", function(msg)
 	if not link then link = msg:match(LOOT_ONE); n = 1 end
 	local id = ItemID(link)
 	if not id or Quality(link) < RARE then return end
-	pending[#pending + 1] = { id = id, link = link, n = tonumber(n) or 1, zone = RaidLabel(), t = time(), giveUp = GetTime() + 10 }
+	pending[#pending + 1] = { id = id, link = link, n = tonumber(n) or 1, zone = RaidLabel(), t = time(), at = GetTime(), giveUp = GetTime() + 10 }
 	ns.Dirty("bags")
 end)
 
@@ -253,7 +259,8 @@ local function UpdateFresh(list)
 	wipe(prevLinks)
 	for key, r in pairs(byKey) do prevLinks[key] = r.link end
 
-	-- unstackables: follow the item if it moved, forget it once it left the bags
+	-- unstackables: follow the item if it moved, forget it once it left the bags.
+	-- A move fills another slot right now; an older copy with the same link is our own.
 	local moved = {}
 	for key, f in pairs(fresh.slot) do
 		if now - f.t > FRESH_TTL or not (byKey[key] and byKey[key].link == f.link) then
@@ -263,7 +270,10 @@ local function UpdateFresh(list)
 	end
 	for _, f in ipairs(moved) do
 		for k2, r in pairs(byKey) do
-			if r.link == f.link and not fresh.slot[k2] then fresh.slot[k2] = f; break end
+			if r.link == f.link and not fresh.slot[k2] and newAt[k2] and GetTime() - newAt[k2] < 1 then
+				fresh.slot[k2] = f
+				break
+			end
 		end
 	end
 	-- stackables: never more than we still hold
@@ -280,11 +290,11 @@ local function UpdateFresh(list)
 			if f then f.n = f.n + p.n; f.t = p.t else fresh.stack[p.id] = { n = p.n, zone = p.zone, t = p.t } end
 			table.remove(pending, i)
 		elseif maxStack then
-			-- prefer a slot that just changed; after the give-up time take any unmarked copy
+			-- only a slot that filled since the loot: a copy we already had is not raid loot
 			local late = GetTime() > p.giveUp
 			for key, r in pairs(byKey) do
 				if p.n > 0 and r.id == p.id and not fresh.slot[key]
-					and (late or (newAt[key] and GetTime() - newAt[key] < 5)) then
+					and newAt[key] and newAt[key] >= p.at - 1 then
 					fresh.slot[key] = { link = r.link, zone = p.zone, t = p.t }
 					p.n = p.n - 1
 				end
