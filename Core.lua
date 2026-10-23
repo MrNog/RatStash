@@ -254,6 +254,14 @@ function ns.IsTrading()
 	return ns.atBank or next(tradeOpen) ~= nil
 end
 
+-- an award is announced in raid chat; a win of loot already in your bags moves
+-- no item, so look again then
+for _, e in ipairs({ "CHAT_MSG_RAID", "CHAT_MSG_RAID_LEADER", "CHAT_MSG_RAID_WARNING" }) do
+	ns.On(e, function()
+		if ns.HasRaidLoot() then ns.Dirty("bags") end
+	end)
+end
+
 -- a focused search box eats movement keys: drop focus on combat and on any world click
 ns.On("PLAYER_REGEN_DISABLED", function()
 	for _, w in pairs(ns.windows) do w.search:ClearFocus() end

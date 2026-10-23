@@ -30,12 +30,14 @@ function ns.WipeTooltipCache() wipe(tipCache) end
 local TRADE_PATTERN = BIND_TRADE_TIME_REMAINING and
 	BIND_TRADE_TIME_REMAINING:gsub("([%(%)%.%+%-%*%?%[%]%^%$])", "%%%1"):gsub("%%s", "(.+)")
 
+-- "1h59" for the button, and the seconds left for sorting by it
 local function ShortTime(s)
 	local h = s:match("(%d+) [Hh]our")
 	local m = s:match("(%d+) [Mm]in")
-	if h then return h .. "h" .. (m or "") end
-	if m then return m .. "m" end
-	return "trade"
+	local secs = (tonumber(h) or 0) * 3600 + (tonumber(m) or 0) * 60
+	if h then return h .. "h" .. (m or ""), secs end
+	if m then return m .. "m", secs end
+	return "trade", nil
 end
 
 local function SetTipTo(bag, slot)
@@ -54,7 +56,7 @@ local function ScanTooltip(r, wantTimer)
 	local c = tipCache[key]
 	if c and not wantTimer then return c.boe, nil end
 	SetTipTo(r.bag, r.slot)
-	local boe, timer = false, nil
+	local boe, timer, secs = false, nil, nil
 	for i = 2, tip:NumLines() do
 		local fs = _G["RatStashScanTipTextLeft" .. i]
 		local text = fs and fs:GetText()
@@ -62,13 +64,13 @@ local function ScanTooltip(r, wantTimer)
 			if text == ITEM_BIND_ON_EQUIP then boe = true end
 			if TRADE_PATTERN and wantTimer then
 				local t = text:match(TRADE_PATTERN)
-				if t then timer = ShortTime(t) end
+				if t then timer, secs = ShortTime(t) end
 			end
 		end
 	end
 	tip:Hide()
 	tipCache[key] = { boe = boe }
-	return boe, timer
+	return boe, timer, secs
 end
 
 --------------------------------------------------------------------------------
@@ -305,12 +307,37 @@ local function UpdateFresh(list)
 		end
 	end
 
+	-- loot Okanvil recorded as won by you is your own gear now: it leaves Raid loot.
+	-- Each win frees one copy, once, so another copy of that item still waiting to
+	-- be rolled stays where it is.
+	local loot = Okanvil and Okanvil.Loot
+	if loot and loot.WonTonight then
+		local ok, won = pcall(loot.WonTonight, UnitName("player"))
+		fresh.claimed = fresh.claimed or {}
+		for _, dp in ipairs(ok and won or {}) do
+			local claim = (dp.id or 0) .. ":" .. (dp.t or 0)
+			if dp.id and not fresh.claimed[claim] then
+				for key, f in pairs(fresh.slot) do
+					local r = byKey[key]
+					if r and r.id == dp.id then
+						fresh.slot[key] = nil
+						fresh.claimed[claim] = now
+						break
+					end
+				end
+			end
+		end
+		for claim, at in pairs(fresh.claimed) do
+			if now - at > FRESH_TTL then fresh.claimed[claim] = nil end
+		end
+	end
+
 	for key, f in pairs(fresh.slot) do
 		local r = byKey[key]
 		if r then
 			r.fresh = f.zone
-			local _, timer = ScanTooltip(r, true)
-			r.timer = timer
+			local _, timer, secs = ScanTooltip(r, true)
+			r.timer, r.timerSecs = timer, secs
 		end
 	end
 end
@@ -329,6 +356,12 @@ local function TrackNew(list)
 	local counts = {}
 	for _, r in ipairs(list) do
 		if r.id then counts[r.id] = (counts[r.id] or 0) + (r.count or 1) end
+	end
+	-- worn items count too, so taking gear off (a set swap) is not an arrival
+	for slot = 1, 19 do
+		local link = GetInventoryItemLink("player", slot)
+		local id = link and tonumber(link:match("item:(%d+)"))
+		if id then counts[id] = (counts[id] or 0) + 1 end
 	end
 	-- the first scans after login only learn what is already there (bags fill in late)
 	if baseline and not ns.atBank and GetTime() - loadedAt > 10 then

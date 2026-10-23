@@ -365,7 +365,6 @@ function W:Layout()
 	for _, sec in ipairs(sections) do
 		local n = #sec.entries
 		-- in groups mode any block narrower than a full row can share a row with its neighbours
-		-- (gear always gets a row of its own)
 		sec.small = packed and n < cols and not sec.stay
 		sec.wcols = sec.small and n or cols
 		sec.w = sec.wcols * STEP - GAP
@@ -384,10 +383,17 @@ function W:Layout()
 		self.raidRule:SetVertexColor(ns.rgb(ns.C.accent, 0.7))
 	end
 	self.raidRule:Hide()
+	-- the same rule closes the sets + gear band
+	if not self.bandRule then
+		self.bandRule = ns.Rule(content)
+		self.bandRule:SetVertexColor(ns.rgb(ns.C.accent, 0.7))
+	end
+	self.bandRule:Hide()
 
 	local x, y, rowH = 0, 0, 0
 	local bi, hi = 0, 0
 	local inRaid = false
+	local band
 	local function place(sec)
 		local th = sec.title and HEADER_H or 0
 		local raid = sec.style == "raid" or sec.style == "hr"
@@ -401,7 +407,17 @@ function W:Layout()
 			y = y + 12
 		end
 		inRaid = raid
-		if x > 0 and (not sec.small or x + sec.w > totalW) then
+		if band and sec.band ~= band then
+			y = y + rowH + 10
+			x, rowH = 0, 0
+			self.bandRule:ClearAllPoints()
+			self.bandRule:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -y)
+			self.bandRule:SetWidth(totalW)
+			self.bandRule:Show()
+			y = y + 12
+		end
+		-- a band (sets + gear) starts on a fresh row
+		if x > 0 and (not sec.small or x + sec.w > totalW or sec.band ~= band) then
 			y = y + rowH + 12
 			x, rowH = 0, 0
 		end
@@ -434,6 +450,7 @@ function W:Layout()
 		end
 		rowH = math.max(rowH, sec.h)
 		x = sec.small and (x + sec.w + SECTION_GAP) or (totalW + 1)
+		band = sec.band
 	end
 
 	local queue = {}
@@ -446,7 +463,7 @@ function W:Layout()
 			filled = false
 			for i = 1, math.min(LOOKAHEAD, #queue) do
 				local s2 = queue[i]
-				if s2.movable and x + s2.w <= totalW then
+				if s2.movable and s2.band == band and x + s2.w <= totalW then
 					place(table.remove(queue, i))
 					filled = true
 					break
@@ -677,7 +694,9 @@ function ns.CreateWindow(kind)
 	f.kind = kind
 	f.buttons, f.headers = {}, {}
 	f:Hide()
-	f:SetFrameStrata("HIGH")
+	-- MEDIUM like Blizzard's bags: windows on another addon's strata interleave
+	-- with it piece by piece, since each item button holds its own frame level.
+	f:SetFrameStrata("MEDIUM")
 	f:SetToplevel(true)
 	f:EnableMouse(true)
 	f:SetMovable(true)

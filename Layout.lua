@@ -237,6 +237,14 @@ function ns.BuildSections(kind)
 
 	local sections = {}
 	local function add(title, style, list, small)
+		-- raid loot runs by trade time left, the one about to lock first
+		if style == "raid" or style == "hr" then
+			table.sort(list, function(a, b)
+				local ta, tb = a.timerSecs or math.huge, b.timerSecs or math.huge
+				if ta ~= tb then return ta < tb end
+				return Compare(a, b)
+			end)
+		end
 		if #list > 0 then
 			sections[#sections + 1] = { title = title, style = style, entries = list, small = small }
 		end
@@ -289,10 +297,16 @@ function ns.BuildSections(kind)
 			add("Pinned", "pin", Merge(pinned, trading), #pinned <= ns.SMALL_GROUP)
 			consumables()
 		end
+		-- gear sets, then loose gear on a row of its own, as one band that no other block joins
+		local first = #sections + 1
 		setGroups()
+		local gear = Merge(take(function(e) return e.group == "gear" end), trading)
+		add("Gear", "cat", gear)
+		if #gear > 0 then sections[#sections].stay = true end
+		for i = first, #sections do sections[i].band = "gear" end
 		for _, c in ipairs(CATS) do
-			if c[1] == "con" then
-				-- drawn next to the pinned items instead
+			if c[1] == "con" or c[1] == "gear" then
+				-- consumables are drawn next to the pinned items, gear next to the sets
 			elseif c[1] == "mat" then
 				-- trade goods get one block per kind of material
 				for _, kind in ipairs(MAT_ORDER) do
@@ -302,7 +316,6 @@ function ns.BuildSections(kind)
 			else
 				local list = Merge(take(function(e) return e.group == c[1] end), trading)
 				add(c[2], c[1] == "fresh" and "raid" or "cat", list, #list <= ns.SMALL_GROUP)
-				if c[1] == "gear" and #list > 0 then sections[#sections].stay = true end
 			end
 		end
 		if pinBottom then
