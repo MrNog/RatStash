@@ -104,7 +104,7 @@ jobs:
           mkdir -p out "staging/$name/Media"
           # only what the game loads: the .toc, the Lua files, the textures, and the license
           cp "$name.toc" *.lua LICENSE "staging/$name/"
-          cp Media/*.blp "staging/$name/Media/"
+          ( cd Media && find . -name '*.blp' -exec cp --parents {} "../staging/$name/Media/" \; )
           # stamp the version into the staged .toc (single source of truth = the tag)
           sed -i "s/^## Version:.*/## Version: ${{ steps.ver.outputs.version }}/" "staging/$name/$name.toc"
           grep '^## Version:' "staging/$name/$name.toc"
